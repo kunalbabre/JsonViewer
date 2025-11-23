@@ -779,6 +779,17 @@ body.json-viewer-active {
 }
 
 /* Snippet Button */
+.jv-sticky-wrapper {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  float: left;
+  z-index: 10;
+  overflow: visible;
+}
+
 .jv-snippet-btn {
   position: absolute;
   top: 0.5rem;

@@ -138,6 +138,10 @@ function injectViewButton(element, jsonText) {
         element.classList.add('jv-relative');
     }
 
+    // Create sticky wrapper to keep button in view during scroll
+    const wrapper = document.createElement('div');
+    wrapper.className = 'jv-sticky-wrapper';
+
     const btn = document.createElement('button');
     btn.className = 'jv-snippet-btn';
     btn.title = 'View in JSON Viewer';
@@ -149,13 +153,21 @@ function injectViewButton(element, jsonText) {
         e.preventDefault();
         try {
             const json = JSON.parse(jsonText);
+            // Pass expandAll: true to ensure tree is expanded
             showModal(json, jsonText);
         } catch (e) {
             console.error('Failed to parse JSON', e);
         }
     };
 
-    element.appendChild(btn);
+    wrapper.appendChild(btn);
+    
+    // Prepend to element so sticky positioning works correctly from the top
+    if (element.firstChild) {
+        element.insertBefore(wrapper, element.firstChild);
+    } else {
+        element.appendChild(wrapper);
+    }
 }
 
 // Polyfill for requestIdleCallback
