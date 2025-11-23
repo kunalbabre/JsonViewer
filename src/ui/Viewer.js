@@ -133,20 +133,35 @@ export class Viewer {
                 const container = document.createElement('div');
                 container.className = 'jv-schema-container';
                 
+                const rawContainer = document.createElement('div');
+                rawContainer.className = 'jv-raw-container';
+                
+                const backdrop = document.createElement('div');
+                backdrop.className = 'jv-raw-backdrop';
+                
                 const textarea = document.createElement('textarea');
                 textarea.className = 'jv-raw';
                 
                 const MAX_RAW_SIZE = 1000000; // 1MB
+                let content = this.rawData;
                 if (this.rawData.length > MAX_RAW_SIZE) {
-                    textarea.value = this.rawData.substring(0, MAX_RAW_SIZE) + '\n\n... (Truncated for performance. Use "Save JSON" to download full content.)';
-                } else {
-                    textarea.value = this.rawData;
+                    content = this.rawData.substring(0, MAX_RAW_SIZE) + '\n\n... (Truncated for performance. Use "Save JSON" to download full content.)';
                 }
+                
+                textarea.value = content;
+                backdrop.textContent = content; // Initial content
 
                 textarea.readOnly = true;
-                textarea.style.flex = '1';
+                
+                // Sync scroll
+                textarea.addEventListener('scroll', () => {
+                    backdrop.scrollTop = textarea.scrollTop;
+                    backdrop.scrollLeft = textarea.scrollLeft;
+                });
 
-                container.appendChild(textarea);
+                rawContainer.appendChild(backdrop);
+                rawContainer.appendChild(textarea);
+                container.appendChild(rawContainer);
                 viewElement = container;
 
             } else if (this.currentView === 'schema') {
@@ -266,16 +281,48 @@ export class Viewer {
         // Special handling for Raw View (Textarea)
         if (this.currentView === 'raw') {
             const textarea = this.contentContainer.querySelector('textarea');
-            if (textarea) {
+            const backdrop = this.contentContainer.querySelector('.jv-raw-backdrop');
+            
+            if (textarea && backdrop) {
                 const text = textarea.value;
                 const lowerText = text.toLowerCase();
+                
+                // Reset backdrop
+                backdrop.innerHTML = '';
+                
+                let lastIndex = 0;
                 let pos = 0;
+                
+                // Build highlighted HTML
+                // We need to escape HTML in the text to prevent injection
+                const escapeHtml = (str) => str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
                 while (pos < lowerText.length) {
                     const index = lowerText.indexOf(searchLower, pos);
                     if (index === -1) break;
-                    this.searchMatches.push({ start: index, end: index + searchLower.length });
-                    pos = index + searchLower.length;
+                    
+                    // Add text before match
+                    backdrop.innerHTML += escapeHtml(text.substring(lastIndex, index));
+                    
+                    // Add match
+                    const matchText = text.substring(index, index + searchLower.length);
+                    const span = document.createElement('span');
+                    span.className = 'jv-raw-highlight';
+                    span.textContent = matchText;
+                    backdrop.appendChild(span);
+                    
+                    this.searchMatches.push({ 
+                        start: index, 
+                        end: index + searchLower.length,
+                        element: span 
+                    });
+                    
+                    lastIndex = index + searchLower.length;
+                    pos = lastIndex;
                 }
+                
+                // Add remaining text
+                backdrop.innerHTML += escapeHtml(text.substring(lastIndex));
             }
             
             this.toolbar.updateMatchCounter(
@@ -344,23 +391,25 @@ export class Viewer {
 
         const match = this.searchMatches[this.currentMatchIndex];
 
-        // Handle Raw View (Textarea selection)
-        if (this.currentView === 'raw' && match.start !== undefined) {
+        // Handle Raw View (Backdrop highlighting)
+        if (this.currentView === 'raw' && match.element) {
             const textarea = this.contentContainer.querySelector('textarea');
+            const backdrop = this.contentContainer.querySelector('.jv-raw-backdrop');
+            
+            // Remove current class from all highlights in backdrop
+            const currentHighlights = backdrop.querySelectorAll('.jv-raw-highlight.current');
+            currentHighlights.forEach(el => el.classList.remove('current'));
+            
+            // Add current class to new match
+            match.element.classList.add('current');
+            
             if (textarea) {
-                // Note: We don't focus() here to avoid stealing focus from the search input
-                textarea.setSelectionRange(match.start, match.end);
-                
                 // Calculate scroll position to center the match
-                // This is an approximation since we can't easily get pixel coordinates in a textarea
-                const fullText = textarea.value;
-                const textBefore = fullText.substring(0, match.start);
-                const lineCount = (textBefore.match(/\n/g) || []).length;
+                // We can use the backdrop element's position relative to the container
+                const elementTop = match.element.offsetTop;
+                const containerHeight = textarea.clientHeight;
                 
-                // Assuming standard line height (approx 20px)
-                const lineHeight = 20; 
-                const scrollTarget = (lineCount * lineHeight) - (textarea.clientHeight / 2);
-                
+                const scrollTarget = elementTop - (containerHeight / 2);
                 textarea.scrollTop = Math.max(0, scrollTarget);
             }
             
