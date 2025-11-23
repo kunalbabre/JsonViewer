@@ -40,12 +40,7 @@ Instantly convert and view your JSON as YAML.
 ### Raw View
 View raw, minified JSON for copying or analysis.
 
-![Raw View](screenshots/raw-view.png)
-
-### Dark Theme
-Automatic theme switching based on system preferences.
-
-![Dark Theme](screenshots/dark-theme.png)
+![Raw View](screenshots/raw-view.png)\
 
 ## 🚀 Installation
 
