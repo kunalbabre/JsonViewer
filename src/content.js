@@ -22,6 +22,30 @@ function isJSON(text) {
 // Performance tuning constant
 const LARGE_FILE_THRESHOLD = 1048576; // 1 MB threshold for showing loading indicator
 
+// Listen for toggle command from background script
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (request.action === 'toggle') {
+            const root = document.getElementById('json-viewer-root');
+            const original = document.getElementById('jv-original-content');
+            
+            if (root && original) {
+                if (root.style.display === 'none') {
+                    // Show Viewer
+                    root.style.display = 'block';
+                    original.style.display = 'none';
+                    document.body.classList.add('json-viewer-active');
+                } else {
+                    // Show Original
+                    root.style.display = 'none';
+                    original.style.display = 'block';
+                    document.body.classList.remove('json-viewer-active');
+                }
+            }
+        }
+    });
+}
+
 (async function () {
     try {
         let Viewer;
@@ -77,8 +101,16 @@ const LARGE_FILE_THRESHOLD = 1048576; // 1 MB threshold for showing loading indi
                     try {
                         const json = JSON.parse(content);
 
-                        // Clear existing content
-                        document.body.innerHTML = '';
+                        // Prepare original content for toggling
+                        const originalContainer = document.createElement('div');
+                        originalContainer.id = 'jv-original-content';
+                        originalContainer.style.display = 'none';
+                        
+                        // Move all existing body children to originalContainer
+                        while (document.body.firstChild) {
+                            originalContainer.appendChild(document.body.firstChild);
+                        }
+                        document.body.appendChild(originalContainer);
                         document.body.classList.add('json-viewer-active');
 
                         // Create root element
