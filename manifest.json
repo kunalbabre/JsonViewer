@@ -17,6 +17,7 @@
     },
     "default_title": "JSON Viewer"
   },
+  "devtools_page": "src/devtools/devtools.html",
   "background": {
     "service_worker": "src/background.js"
   },
