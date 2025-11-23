@@ -10,7 +10,7 @@ const DEEP_NESTING_THRESHOLD = 0; // Nodes deeper than this auto-collapse
 export class TreeView {
     constructor(data, searchQuery = '', mode = 'json') {
         this.data = data;
-        this.searchQuery = searchQuery.toLowerCase();
+        this._searchQuery = searchQuery.toLowerCase();
         this.mode = mode; // 'json' or 'yaml'
         this.element = document.createElement('div');
         this.element.className = 'jv-tree';
@@ -18,6 +18,107 @@ export class TreeView {
             this.element.classList.add('jv-yaml-mode');
         }
         this.renderBatch(this.data, this.element, '', 0);
+        
+        if (this._searchQuery) {
+            // Defer expansion to allow initial render to complete
+            setTimeout(() => this.expandMatches(this._searchQuery), 0);
+        }
+    }
+
+    set searchQuery(query) {
+        this._searchQuery = query;
+        this.expandMatches(query);
+    }
+
+    get searchQuery() {
+        return this._searchQuery;
+    }
+
+    async expandMatches(query) {
+        // Cancel previous search
+        this.currentSearchId = (this.currentSearchId || 0) + 1;
+        const searchId = this.currentSearchId;
+
+        if (!query) return;
+        
+        this.expandedPaths = new Set();
+        const lowerQuery = query.toLowerCase();
+        
+        // Use a stack for iterative traversal to allow yielding
+        const stack = [{ data: this.data, path: '' }];
+        const matchingPaths = new Set();
+
+        // Time-sliced traversal to prevent UI freezing
+        const processChunk = () => {
+            return new Promise(resolve => {
+                const chunkStart = performance.now();
+                
+                while (stack.length > 0) {
+                    // Check for cancellation
+                    if (this.currentSearchId !== searchId) {
+                        resolve(false);
+                        return;
+                    }
+
+                    // Yield to main thread every 12ms
+                    if (performance.now() - chunkStart > 12) {
+                        setTimeout(() => resolve(processChunk()), 0);
+                        return;
+                    }
+
+                    const { data, path } = stack.pop();
+                    
+                    if (typeof data === 'object' && data !== null) {
+                        const keys = Object.keys(data);
+                        for (const key of keys) {
+                            const value = data[key];
+                            const isArray = Array.isArray(data);
+                            const currentPath = path ? (isArray ? `${path}[${key}]` : `${path}.${key}`) : key;
+                            
+                            let isMatch = false;
+                            if (key.toLowerCase().includes(lowerQuery)) isMatch = true;
+                            if (typeof value !== 'object' && value !== null && String(value).toLowerCase().includes(lowerQuery)) isMatch = true;
+                            
+                            if (isMatch) matchingPaths.add(currentPath);
+                            
+                            if (typeof value === 'object' && value !== null) {
+                                stack.push({ data: value, path: currentPath });
+                            }
+                        }
+                    }
+                }
+                resolve(true);
+            });
+        };
+
+        const completed = await processChunk();
+        if (!completed) return;
+        
+        // Post-process: Add all parent paths for every match
+        for (const path of matchingPaths) {
+            this.expandedPaths.add(path);
+            let current = path;
+            while (true) {
+                const lastDot = current.lastIndexOf('.');
+                const lastBracket = current.lastIndexOf('[');
+                const splitIndex = Math.max(lastDot, lastBracket);
+                
+                if (splitIndex === -1) break;
+                current = current.substring(0, splitIndex);
+                this.expandedPaths.add(current);
+            }
+        }
+        
+        // Expand visible nodes that are on the path
+        const nodes = this.element.querySelectorAll('.jv-node');
+        nodes.forEach(node => {
+            if (this.expandedPaths.has(node.dataset.path)) {
+                const toggler = node.querySelector('.jv-toggler');
+                if (toggler && !toggler.classList.contains('expanded')) {
+                    toggler.click();
+                }
+            }
+        });
     }
 
     // Batch rendering to prevent blocking the main thread
@@ -85,6 +186,8 @@ export class TreeView {
     createNode(key, value, currentPath, isArray, depth) {
         const node = document.createElement('div');
         node.className = 'jv-node';
+        node.dataset.key = key; // For programmatic access
+        node.dataset.path = currentPath; // For search expansion
 
         const header = document.createElement('div');
         header.className = 'jv-node-header';
@@ -96,7 +199,13 @@ export class TreeView {
         if (isExpandable) {
             const toggler = document.createElement('span');
             // Start collapsed for deep nesting or large arrays/objects
-            const shouldCollapse = depth > DEEP_NESTING_THRESHOLD || valueKeys.length > LARGE_OBJECT_THRESHOLD;
+            let shouldCollapse = depth > DEEP_NESTING_THRESHOLD || valueKeys.length > LARGE_OBJECT_THRESHOLD;
+            
+            // Auto-expand if in search path
+            if (this.expandedPaths && this.expandedPaths.has(currentPath)) {
+                shouldCollapse = false;
+            }
+
             toggler.className = shouldCollapse ? 'jv-toggler' : 'jv-toggler expanded';
             toggler.textContent = '▶';
             toggler.onclick = (e) => {
@@ -132,7 +241,7 @@ export class TreeView {
         }
 
         // Highlight search match in key
-        if (this.searchQuery && key.toLowerCase().includes(this.searchQuery)) {
+        if (this._searchQuery && key.toLowerCase().includes(this._searchQuery)) {
             keySpan.classList.add('jv-highlight');
         }
 

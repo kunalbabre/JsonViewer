@@ -16,6 +16,7 @@ export class YamlView {
         try {
             // Create Tree View first so we can reference it
             const tree = new TreeView(this.data, this.searchQuery, 'yaml');
+            this.treeView = tree;
 
         // Toolbar
         const toolbar = document.createElement('div');
