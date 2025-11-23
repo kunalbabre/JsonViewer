@@ -124,6 +124,12 @@ export class EditorView {
         this.scroller.appendChild(this.textarea);
         this.element.appendChild(editorWrapper);
 
+        // Status Bar
+        this.statusBar = document.createElement('div');
+        this.statusBar.className = 'jv-editor-statusbar';
+        this.statusBar.innerHTML = 'Ln 1, Col 1';
+        this.element.appendChild(this.statusBar);
+
         // Initialize
         setTimeout(() => this.init(), 0);
     }
@@ -453,6 +459,12 @@ export class EditorView {
         
         this.currentActiveLine = line;
         
+        // Update Status Bar
+        const col = cursor - this.lineOffsets[line] + 1;
+        if (this.statusBar) {
+            this.statusBar.textContent = `Ln ${line + 1}, Col ${col}`;
+        }
+
         // Update gutter classes
         const gutterLines = this.gutterContent.children;
         for (let i = 0; i < gutterLines.length; i++) {

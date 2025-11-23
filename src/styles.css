@@ -616,6 +616,17 @@ body.json-viewer-active {
   border-top: 1px solid var(--border-color);
 }
 
+.jv-editor-statusbar {
+  padding: 0.25rem 1rem;
+  background-color: var(--toolbar-bg);
+  color: var(--text-color);
+  font-size: 0.75rem;
+  border-top: 1px solid var(--border-color);
+  text-align: right;
+  font-family: var(--font-family);
+  user-select: none;
+}
+
 /* Utilities */
 .hidden {
   display: none !important;
