@@ -152,6 +152,9 @@ function isValidJson(text) {
 }
 
 function injectViewButton(element, jsonText) {
+    // Check if button already exists to prevent duplicates
+    if (element.querySelector('.jv-sticky-wrapper')) return;
+
     // Ensure element is positioned so we can absolute position the button
     const style = window.getComputedStyle(element);
     if (style.position === 'static') {
@@ -222,6 +225,9 @@ function scanForJsonCodeBlocks() {
                     if (text.length > 2 && (text.trim().startsWith('{') || text.trim().startsWith('['))) {
                         // Defer parsing to idle time to avoid blocking scroll
                         requestIdleCallback(() => {
+                            // Check again in case it was processed while waiting in queue (e.g. by parent PRE)
+                            if (element.dataset.jvProcessed) return;
+
                             if (isValidJson(text)) {
                                 injectViewButton(element, text);
                                 element.dataset.jvProcessed = 'true';
