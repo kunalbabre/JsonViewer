@@ -536,8 +536,15 @@ export class EditorView {
         // We subtract scrollTop because the 'pre' container is fixed to the viewport,
         // so we need to shift the content up to match the scroll position.
         const topOffset = (renderStartLine * this.lineHeight) - scrollTop;
+        
+        // Sync width to enable native scrolling behavior
+        this.code.style.width = `${this.textarea.scrollWidth}px`;
+        
         this.code.style.transform = `translateY(${topOffset}px)`;
         this.gutterContent.style.transform = `translateY(${topOffset}px)`;
+        
+        // Sync horizontal scroll immediately
+        this.pre.scrollLeft = this.textarea.scrollLeft;
         
         // Update active line position as well since scrollTop changed
         if (this.currentActiveLine !== undefined) {

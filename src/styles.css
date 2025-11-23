@@ -534,6 +534,8 @@ body.json-viewer-active {
   font-size: inherit;
   line-height: inherit;
   letter-spacing: inherit;
+  tab-size: 2;
+  -moz-tab-size: 2;
 }
 
 .jv-editor-textarea {
@@ -561,6 +563,9 @@ body.json-viewer-active {
   color: var(--text-color);
   pointer-events: none;
   overflow: hidden; /* Virtualization viewport */
+  /* Match textarea exactly */
+  text-rendering: optimizeSpeed;
+  font-variant-ligatures: none;
 }
 
 .jv-editor-code {
@@ -572,6 +577,9 @@ body.json-viewer-active {
   will-change: transform;
   padding: 0 1rem; /* Match container padding */
   box-sizing: border-box;
+  /* Match textarea exactly */
+  text-rendering: optimizeSpeed;
+  font-variant-ligatures: none;
 }
 
 .jv-error-marker {
