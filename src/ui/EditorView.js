@@ -72,7 +72,35 @@ export class EditorView {
         // this.measureLineHeight(); 
         this.lineHeight = 21; // Hardcoded to match CSS for stability
         this.scanLines(this.content);
+        this.initWorker();
+        this.validate();
         this.updateVirtualWindow();
+    }
+
+    initWorker() {
+        const workerCode = `
+            self.onmessage = function(e) {
+                const text = e.data;
+                try {
+                    JSON.parse(text);
+                    self.postMessage({ error: null });
+                } catch (e) {
+                    const match = e.message.match(/at position (\\d+)/);
+                    self.postMessage({
+                        error: {
+                            pos: match ? parseInt(match[1], 10) : -1,
+                            message: e.message
+                        }
+                    });
+                }
+            };
+        `;
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        this.worker = new Worker(URL.createObjectURL(blob));
+        this.worker.onmessage = (e) => {
+            this.error = e.data.error;
+            this.updateVirtualWindow(); // Re-render to show/hide error
+        };
     }
 
     scanLines(text) {
@@ -81,7 +109,13 @@ export class EditorView {
         // Uint32Array = 13MB. JS Array = ~50MB+.
         
         const estimatedLines = Math.max(1000, Math.ceil(text.length / 40));
-        let offsets = new Uint32Array(estimatedLines);
+        
+        // Reuse buffer if possible
+        let offsets = this.lineOffsets;
+        if (!offsets || offsets.length < estimatedLines) {
+             offsets = new Uint32Array(estimatedLines + 1000); // Add buffer
+        }
+        
         let count = 0;
         
         offsets[count++] = 0;
@@ -105,8 +139,9 @@ export class EditorView {
         }
         offsets[count++] = text.length + 1;
         
-        // Trim
-        this.lineOffsets = offsets.subarray(0, count);
+        // Store the full buffer but track the valid length
+        this.lineOffsets = offsets;
+        this.lineCount = count;
     }
 
     handleInput() {
@@ -119,35 +154,23 @@ export class EditorView {
         this.inputTimer = setTimeout(() => {
             this.content = this.textarea.value;
             this.scanLines(this.content);
-            this.validate(); // Check for errors
             this.updateVirtualWindow();
             
             // Restore highlighting
             this.textarea.classList.remove('dirty');
             this.code.style.display = 'block';
-        }, 200);
+        }, 100); // Fast update for highlighting
+
+        // Separate debounce for validation (heavy)
+        if (this.validationTimer) clearTimeout(this.validationTimer);
+        this.validationTimer = setTimeout(() => {
+            this.validate();
+        }, 500); // Slower update for validation
     }
 
     validate() {
-        this.error = null;
-        try {
-            JSON.parse(this.content);
-        } catch (e) {
-            // Extract position from error message
-            // V8 format: "Unexpected token } in JSON at position 123"
-            const match = e.message.match(/at position (\d+)/);
-            if (match) {
-                this.error = {
-                    pos: parseInt(match[1], 10),
-                    message: e.message
-                };
-            } else {
-                // Fallback if position not found
-                this.error = {
-                    pos: -1,
-                    message: e.message
-                };
-            }
+        if (this.worker) {
+            this.worker.postMessage(this.content);
         }
     }
 
@@ -160,7 +183,7 @@ export class EditorView {
     }
 
     updateVirtualWindow() {
-        if (!this.lineHeight || this.lineOffsets.length === 0) return;
+        if (!this.lineHeight || !this.lineOffsets || this.lineCount === 0) return;
 
         const scrollTop = this.textarea.scrollTop;
         const containerHeight = this.textarea.clientHeight;
@@ -171,7 +194,7 @@ export class EditorView {
         // Buffer lines to prevent flickering
         const buffer = 5;
         const renderStartLine = Math.max(0, startLine - buffer);
-        const renderEndLine = Math.min(this.lineOffsets.length - 1, startLine + visibleLines + buffer);
+        const renderEndLine = Math.min(this.lineCount - 1, startLine + visibleLines + buffer);
         
         const startIndex = this.lineOffsets[renderStartLine];
         const endIndex = this.lineOffsets[renderEndLine]; // Start of next line is end of this range
