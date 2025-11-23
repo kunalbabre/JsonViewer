@@ -370,10 +370,12 @@ function scanForJsonCodeBlocks() {
                                     };
                                 `;
                                 const blob = new Blob([workerCode], { type: 'application/javascript' });
-                                const worker = new Worker(URL.createObjectURL(blob));
+                                const blobURL = URL.createObjectURL(blob);
+                                const worker = new Worker(blobURL);
                                 
                                 worker.onmessage = (e) => {
                                     worker.terminate();
+                                    URL.revokeObjectURL(blobURL); // Clean up blob URL
                                     if (e.data.success) {
                                         resolve(e.data.data);
                                     } else {
@@ -382,7 +384,9 @@ function scanForJsonCodeBlocks() {
                                 };
                                 
                                 worker.onerror = (error) => {
+                                    console.warn('JSON Viewer: Worker failed, falling back to main thread', error.message);
                                     worker.terminate();
+                                    URL.revokeObjectURL(blobURL); // Clean up blob URL
                                     // Fallback to main thread
                                     try {
                                         resolve(JSON.parse(text));
