@@ -13,9 +13,10 @@ chrome.devtools.network.onRequestFinished.addListener(request => {
     const mimeType = (request.response.content.mimeType || '').toLowerCase();
     
     // Initial filter by MIME type
+    // We strictly filter for JSON-related MIME types to avoid performance impact of fetching content for every request
     const isJsonMime = mimeType.includes('json') || 
                    mimeType.includes('javascript') || 
-                   mimeType.includes('application/vnd.api+json');
+                   mimeType.endsWith('+json');
 
     if (isJsonMime) {
         // Verify content is actually valid JSON before adding to list
