@@ -76,7 +76,7 @@ export class Viewer {
         this.contentContainer.innerHTML = '';
 
         // Helper to create the standard toolbar for JSON views
-        const createJsonToolbar = (includeTreeActions = false) => {
+        const createJsonToolbar = (includeTreeActions = false, includeRawActions = false, textarea = null) => {
             const toolbar = document.createElement('div');
             toolbar.className = 'jv-schema-toolbar'; // Reuse existing style
 
@@ -92,6 +92,23 @@ export class Viewer {
                 collapseBtn.innerHTML = `${Icons.collapse} <span>Collapse All</span>`;
                 collapseBtn.onclick = () => this.handleCollapseAll();
                 toolbar.appendChild(collapseBtn);
+
+                // Separator
+                const sep = document.createElement('div');
+                sep.className = 'jv-separator';
+                toolbar.appendChild(sep);
+            }
+
+            if (includeRawActions && textarea) {
+                const wrapBtn = document.createElement('button');
+                wrapBtn.className = 'jv-btn';
+                wrapBtn.innerHTML = `${Icons.link} <span>Word Wrap</span>`; // Reusing link icon for now
+                wrapBtn.onclick = () => {
+                    const isWrapped = textarea.style.whiteSpace === 'pre-wrap';
+                    textarea.style.whiteSpace = isWrapped ? 'pre' : 'pre-wrap';
+                    wrapBtn.classList.toggle('active', !isWrapped);
+                };
+                toolbar.appendChild(wrapBtn);
 
                 // Separator
                 const sep = document.createElement('div');
@@ -141,10 +158,12 @@ export class Viewer {
         } else if (this.currentView === 'raw') {
             const container = document.createElement('div');
             container.className = 'jv-schema-container';
-            container.appendChild(createJsonToolbar());
-
+            
             const textarea = document.createElement('textarea');
             textarea.className = 'jv-raw';
+            
+            // Add toolbar with textarea reference
+            container.appendChild(createJsonToolbar(false, true, textarea));
             
             // Truncate large raw data
             const MAX_RAW_SIZE = 1000000; // 1MB
@@ -171,21 +190,6 @@ export class Viewer {
             this.viewCache[this.currentView] = schema.element;
             
         } else if (this.currentView === 'yaml') {
-            // Disable YAML for large files
-            if (this.rawData.length > 1000000) { // 1MB limit
-                const container = document.createElement('div');
-                container.className = 'jv-schema-container';
-                container.style.display = 'flex';
-                container.style.alignItems = 'center';
-                container.style.justifyContent = 'center';
-                container.style.color = 'var(--null-color)';
-                container.textContent = 'YAML view is disabled for large files (>1MB) to prevent performance issues.';
-                
-                this.contentContainer.appendChild(container);
-                this.viewCache[this.currentView] = container;
-                return;
-            }
-
             const yaml = new YamlView(this.data, this.searchQuery);
             this.contentContainer.appendChild(yaml.element);
             

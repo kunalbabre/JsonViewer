@@ -14,8 +14,6 @@ export class YamlView {
 
     render() {
         try {
-            const yamlString = jsonToYaml(this.data);
-
             // Create Tree View first so we can reference it
             const tree = new TreeView(this.data, this.searchQuery, 'yaml');
 
@@ -43,12 +41,22 @@ export class YamlView {
         const copyBtn = document.createElement('button');
         copyBtn.className = 'jv-btn';
         copyBtn.innerHTML = `${Icons.copy} <span>Copy YAML</span>`;
-        copyBtn.onclick = () => {
-            navigator.clipboard.writeText(yamlString).then(() => {
-                Toast.show('YAML copied to clipboard');
-            }).catch((e) => {
-                Toast.show('Failed to copy: ' + e.message);
-            });
+        copyBtn.onclick = async () => {
+            Toast.show('Generating YAML...');
+            
+            // Allow UI to update before blocking
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            try {
+                const yamlString = jsonToYaml(this.data);
+                navigator.clipboard.writeText(yamlString).then(() => {
+                    Toast.show('YAML copied to clipboard');
+                }).catch((e) => {
+                    Toast.show('Failed to copy: ' + e.message);
+                });
+            } catch (e) {
+                Toast.show('Failed to generate YAML: ' + e.message);
+            }
         };
         toolbar.appendChild(copyBtn);
 

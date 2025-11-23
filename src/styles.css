@@ -393,6 +393,9 @@ body.json-viewer-active {
   font-size: 0.9rem;
   resize: none;
   outline: none;
+  white-space: pre;
+  overflow: auto;
+  padding: 1rem;
 }
 
 /* Toast */
