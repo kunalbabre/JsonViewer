@@ -15,6 +15,9 @@ export class Viewer {
         this.searchMatches = [];
         this.currentMatchIndex = -1;
         this.searchDebounceTimer = null;
+        
+        // Cache rendered views for fast switching
+        this.viewCache = {};
 
         // Detect system theme preference
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -58,6 +61,18 @@ export class Viewer {
     }
 
     renderContent() {
+        // Check if view is already cached
+        if (this.viewCache[this.currentView]) {
+            this.contentContainer.innerHTML = '';
+            this.contentContainer.appendChild(this.viewCache[this.currentView]);
+            
+            // Restore treeView reference if needed
+            if (this.currentView === 'tree') {
+                this.treeView = this.viewCache[this.currentView]._treeView;
+            }
+            return;
+        }
+
         this.contentContainer.innerHTML = '';
 
         // Helper to create the standard toolbar for JSON views
@@ -112,7 +127,11 @@ export class Viewer {
             treeContainer.appendChild(this.treeView.element);
 
             container.appendChild(treeContainer);
+            container._treeView = this.treeView; // Store reference
             this.contentContainer.appendChild(container);
+            
+            // Cache the view
+            this.viewCache[this.currentView] = container;
 
             // Auto expand if searching
             if (this.searchQuery.length > 2) {
@@ -132,13 +151,23 @@ export class Viewer {
 
             container.appendChild(textarea);
             this.contentContainer.appendChild(container);
+            
+            // Cache the view
+            this.viewCache[this.currentView] = container;
 
         } else if (this.currentView === 'schema') {
             const schema = new SchemaView(this.data, this.searchQuery);
             this.contentContainer.appendChild(schema.element);
+            
+            // Cache the view
+            this.viewCache[this.currentView] = schema.element;
+            
         } else if (this.currentView === 'yaml') {
             const yaml = new YamlView(this.data, this.searchQuery);
             this.contentContainer.appendChild(yaml.element);
+            
+            // Cache the view
+            this.viewCache[this.currentView] = yaml.element;
         }
     }
 
@@ -149,14 +178,12 @@ export class Viewer {
     }
 
     handleSearch(query) {
-        // Debounce search to avoid excessive re-renders
-        if (this.searchDebounceTimer) {
-            clearTimeout(this.searchDebounceTimer);
+        // Clear view cache when search changes to force re-render with new search
+        if (query !== this.searchQuery) {
+            this.viewCache = {};
         }
-
-        this.searchDebounceTimer = setTimeout(() => {
-            this.performSearch(query);
-        }, 300);
+        // Instant search - no debouncing
+        this.performSearch(query);
     }
 
     performSearch(query) {
