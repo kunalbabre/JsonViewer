@@ -255,13 +255,37 @@ function scanForJsonCodeBlocks() {
 
             // Detect raw JSON on any page (including file://)
             let content = '';
-            // 1️⃣ Prefer a <pre> element if the page wraps the JSON in one
-            const pre = document.querySelector('pre');
-            if (pre) {
-                content = pre.innerText.trim();
-            } else {
-                // 2️⃣ Fallback to the whole body text (covers plain‑JSON files with no HTML wrapper)
-                content = document.body.innerText.trim();
+            let isRawJson = false;
+
+            // Strict check: Only activate full viewer if the page is clearly a JSON response.
+            // We avoid activating on regular HTML pages that happen to have a code block.
+
+            // 1. Check Content-Type header (if available)
+            const jsonContentTypes = ['application/json', 'text/json', 'application/vnd.api+json'];
+            if (jsonContentTypes.includes(document.contentType)) {
+                content = document.body.innerText;
+                isRawJson = true;
+            }
+            // 2. Check for Chrome/Firefox default view (Single PRE element wrapping the content)
+            else if (document.body.children.length === 1 && document.body.firstElementChild.tagName === 'PRE') {
+                const text = document.body.firstElementChild.innerText.trim();
+                if (isJSON(text)) {
+                    content = text;
+                    isRawJson = true;
+                }
+            }
+            // 3. Check for Plain Text body (no HTML tags, just text)
+            else if (document.body.children.length === 0 && document.body.innerText.trim().length > 0) {
+                const text = document.body.innerText.trim();
+                if (isJSON(text)) {
+                    content = text;
+                    isRawJson = true;
+                }
+            }
+
+            if (!isRawJson) {
+                console.log('JSON Viewer: Page is not raw JSON, skipping full viewer.');
+                return;
             }
 
             if (!isJSON(content)) {
