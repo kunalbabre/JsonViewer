@@ -5,13 +5,15 @@ export class EditorView {
     constructor(data, onUpdate) {
         this.data = data;
         this.onUpdate = onUpdate;
-        this.content = JSON.stringify(data, null, 2);
+        this.content = ''; // Load async
         this.element = document.createElement('div');
         this.element.className = 'jv-editor-container';
         
         this.lineOffsets = null; // Will be Uint32Array
         this.lineHeight = 21; // Matches CSS
         this.version = 0; // Track content version
+        this.isLoading = true;
+        this.pendingRequests = new Map(); // Track pending content
         this.render();
     }
 
@@ -37,6 +39,27 @@ export class EditorView {
         // Editor Area
         const editorWrapper = document.createElement('div');
         editorWrapper.className = 'jv-editor-wrapper';
+
+        // Loading State
+        this.loader = document.createElement('div');
+        this.loader.className = 'jv-editor-loader';
+        this.loader.innerHTML = `
+            <div class="jv-spinner"></div>
+            <div>Loading Editor...</div>
+        `;
+        this.loader.style.cssText = `
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-color);
+            z-index: 10;
+            color: var(--text-color);
+            gap: 1rem;
+        `;
+        editorWrapper.appendChild(this.loader);
 
         // Syntax highlighted editor structure (always used)
         this.pre = document.createElement('pre');
@@ -76,25 +99,42 @@ export class EditorView {
         
         this.initWorker();
         
-        // Initial scan
+        // Initial load
         if (this.worker) {
-            this.worker.postMessage({ text: this.content, version: this.version });
+            this.worker.postMessage({ 
+                data: this.data, 
+                version: this.version,
+                action: 'stringify' 
+            });
         }
     }
 
     initWorker() {
         const workerCode = `
             self.onmessage = function(e) {
-                const { text, version, action } = e.data;
+                const { text, data, version, action } = e.data;
                 
+                if (action === 'stringify') {
+                    try {
+                        const stringified = JSON.stringify(data, null, 2);
+                        self.postMessage({ 
+                            text: stringified,
+                            version: version,
+                            action: 'stringifyComplete'
+                        });
+                        // Continue to scan immediately
+                        scan(stringified, version);
+                        return;
+                    } catch (err) {
+                        self.postMessage({ error: { message: err.message }, version, action: 'error' });
+                        return;
+                    }
+                }
+
                 if (action === 'format') {
                     try {
                         const parsed = JSON.parse(text);
                         const formatted = JSON.stringify(parsed, null, 2);
-                        
-                        // We need to rescan the formatted text
-                        // Reuse the scan logic below by setting text = formatted
-                        // But we need to send back the new text too
                         
                         self.postMessage({ 
                             formattedText: formatted,
@@ -102,10 +142,8 @@ export class EditorView {
                             action: 'formatComplete'
                         });
                         
-                        // Continue to scan the new text
-                        // Recursive call or just fall through? 
-                        // Let's just trigger a new message to self or handle it here.
-                        // Simpler: Client handles the update and sends a new scan request.
+                        // Continue to scan
+                        scan(formatted, version);
                         return;
                     } catch (err) {
                         self.postMessage({ error: { message: err.message }, version, action: 'formatError' });
@@ -113,6 +151,13 @@ export class EditorView {
                     }
                 }
 
+                // Default action: scan
+                if (text) {
+                    scan(text, version);
+                }
+            };
+
+            function scan(text, version) {
                 const result = { error: null, offsets: null, count: 0, version };
                 
                 // 1. Scan Lines
@@ -160,13 +205,24 @@ export class EditorView {
                 
                 // Transfer the buffer to avoid copy
                 self.postMessage(result, [result.offsets.buffer]);
-            };
+            }
         `;
         const blob = new Blob([workerCode], { type: 'application/javascript' });
         this.worker = new Worker(URL.createObjectURL(blob));
         this.worker.onmessage = (e) => {
-            const { error, offsets, count, version, action, formattedText } = e.data;
+            const { error, offsets, count, version, action, formattedText, text } = e.data;
             
+            if (action === 'stringifyComplete') {
+                if (version === this.version) {
+                    this.content = text;
+                    this.textarea.value = this.content;
+                    this.loader.style.display = 'none';
+                    this.isLoading = false;
+                    // Scan results will follow in next message
+                }
+                return;
+            }
+
             if (action === 'formatComplete') {
                 if (version === this.version) {
                     this.content = formattedText;
@@ -178,13 +234,20 @@ export class EditorView {
                 return;
             }
             
-            if (action === 'formatError') {
-                Toast.show('Invalid JSON: ' + error.message);
+            if (action === 'formatError' || action === 'error') {
+                Toast.show('Error: ' + (error ? error.message : 'Unknown error'));
+                this.loader.style.display = 'none';
                 return;
             }
 
             // Ignore outdated results
             if (version !== this.version) return;
+            
+            // Retrieve the text content associated with this version
+            if (this.pendingRequests.has(version)) {
+                this.content = this.pendingRequests.get(version);
+                this.pendingRequests.delete(version);
+            }
             
             // Update state
             this.error = error;
@@ -203,50 +266,88 @@ export class EditorView {
     handleKeydown(e) {
         if (e.key === 'Tab') {
             e.preventDefault();
-            
-            // Use setRangeText for better performance than value concatenation
-            // This also preserves undo history in some browsers, but not all.
-            // execCommand is deprecated but 'insertText' is the only way to preserve undo stack reliably.
-            
-            try {
-                // Try modern API first
-                if (!document.execCommand('insertText', false, '  ')) {
-                    // Fallback
-                    const start = this.textarea.selectionStart;
-                    const end = this.textarea.selectionEnd;
-                    this.textarea.setRangeText('  ', start, end, 'end');
-                    // Manually trigger input event since setRangeText doesn't fire it
-                    this.handleInput(); 
+            const start = this.textarea.selectionStart;
+            const end = this.textarea.selectionEnd;
+            const value = this.textarea.value;
+
+            if (e.shiftKey) {
+                // Shift+Tab: Unindent
+                let lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                let lineEnd = value.indexOf('\n', end);
+                if (lineEnd === -1) lineEnd = value.length;
+
+                const text = value.substring(lineStart, lineEnd);
+                const lines = text.split('\n');
+                let modified = false;
+                
+                const newLines = lines.map(line => {
+                    if (line.startsWith('  ')) {
+                        modified = true;
+                        return line.substring(2);
+                    } else if (line.startsWith('\t')) {
+                        modified = true;
+                        return line.substring(1);
+                    } else if (line.startsWith(' ')) {
+                         modified = true;
+                         return line.substring(1);
+                    }
+                    return line;
+                });
+
+                if (modified) {
+                    const newText = newLines.join('\n');
+                    this.textarea.setRangeText(newText, lineStart, lineEnd, 'select');
+                    this.handleInput();
                 }
-            } catch (err) {
-                // Fallback for very old browsers or if execCommand fails
-                const start = this.textarea.selectionStart;
-                const end = this.textarea.selectionEnd;
-                this.textarea.setRangeText('  ', start, end, 'end');
-                this.handleInput();
+            } else {
+                // Tab
+                if (start !== end && value.substring(start, end).includes('\n')) {
+                    // Multi-line selection: Indent
+                    let lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                    let lineEnd = value.indexOf('\n', end);
+                    if (lineEnd === -1) lineEnd = value.length;
+
+                    const text = value.substring(lineStart, lineEnd);
+                    const lines = text.split('\n');
+                    const newLines = lines.map(line => '  ' + line);
+                    const newText = newLines.join('\n');
+                    
+                    this.textarea.setRangeText(newText, lineStart, lineEnd, 'select');
+                    this.handleInput();
+                } else {
+                    // Single cursor or selection within line: Insert spaces
+                    try {
+                        if (!document.execCommand('insertText', false, '  ')) {
+                            this.textarea.setRangeText('  ', start, end, 'end');
+                            this.handleInput(); 
+                        }
+                    } catch (err) {
+                        this.textarea.setRangeText('  ', start, end, 'end');
+                        this.handleInput();
+                    }
+                }
             }
         }
     }
 
     handleInput() {
-        // Show raw text immediately to prevent lag
-        this.textarea.classList.add('dirty');
-        this.code.style.display = 'none';
+        // Optimistic update: Render the visible part immediately using the live value
+        // This prevents the "flash" of raw text and makes typing feel instant.
+        this.updateVirtualWindow(this.textarea.value);
 
-        // Debounce
+        // Debounce the heavy worker sync
         if (this.inputTimer) clearTimeout(this.inputTimer);
         
-        // Increase debounce to 300ms to allow longer typing bursts without freeze
         this.inputTimer = setTimeout(() => {
-            // Use requestIdleCallback to avoid blocking main thread if busy
             const update = () => {
-                // This is the heavy operation (reading 100MB string)
-                // We can't avoid reading it, but we can try to minimize impact.
-                // Accessing .value forces a layout and string copy.
-                this.content = this.textarea.value;
-                this.version++; // Increment version
+                const text = this.textarea.value;
+                this.version++;
+                
+                // Store the text we are sending so we can retrieve it when worker returns
+                this.pendingRequests.set(this.version, text);
+                
                 if (this.worker) {
-                    this.worker.postMessage({ text: this.content, version: this.version });
+                    this.worker.postMessage({ text: text, version: this.version });
                 }
             };
             
@@ -270,8 +371,11 @@ export class EditorView {
         requestAnimationFrame(() => this.updateVirtualWindow());
     }
 
-    updateVirtualWindow() {
+    updateVirtualWindow(liveContent = null) {
         if (!this.lineHeight || !this.lineOffsets || this.lineCount === 0) return;
+
+        const content = liveContent || this.content;
+        const isDirty = !!liveContent;
 
         const scrollTop = this.textarea.scrollTop;
         const containerHeight = this.textarea.clientHeight;
@@ -284,18 +388,29 @@ export class EditorView {
         const renderStartLine = Math.max(0, startLine - buffer);
         const renderEndLine = Math.min(this.lineCount - 1, startLine + visibleLines + buffer);
         
-        const startIndex = this.lineOffsets[renderStartLine];
-        const endIndex = this.lineOffsets[renderEndLine]; // Start of next line is end of this range
+        let startIndex = this.lineOffsets[renderStartLine];
+        let endIndex = this.lineOffsets[renderEndLine]; // Start of next line is end of this range
+
+        // If we are in dirty mode (user typing), we need to adjust offsets
+        // because this.lineOffsets corresponds to this.content, not liveContent.
+        if (isDirty) {
+            const delta = content.length - this.content.length;
+            const cursor = this.textarea.selectionStart;
+            
+            // Shift offsets if they are after the edit position
+            if (startIndex > cursor) startIndex += delta;
+            if (endIndex !== undefined && endIndex > cursor) endIndex += delta;
+        }
 
         // Slice the visible text
         // Note: endIndex might be undefined if we are at the very end
-        const visibleText = this.content.substring(startIndex, endIndex !== undefined ? endIndex : this.content.length);
+        const visibleText = content.substring(startIndex, endIndex !== undefined ? endIndex : content.length);
         
         // Highlight only the visible text
         this.code.innerHTML = this.highlight(visibleText);
 
-        // Inject error marker if visible
-        if (this.error && this.error.pos !== -1) {
+        // Inject error marker if visible (only if not dirty, to avoid misalignment)
+        if (!isDirty && this.error && this.error.pos !== -1) {
             const startOffset = this.lineOffsets[renderStartLine];
             // endOffset might be undefined if we are at the end
             const endOffset = (renderEndLine < this.lineOffsets.length) ? this.lineOffsets[renderEndLine] : this.content.length;
