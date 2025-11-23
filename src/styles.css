@@ -21,31 +21,6 @@
   --mono-font: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-color: #0f172a;
-    /* Slate 900 */
-    --text-color: #e2e8f0;
-    /* Slate 200 */
-    --key-color: #e879f9;
-    /* Fuchsia 400 */
-    --string-color: #4ade80;
-    /* Green 400 */
-    --number-color: #fbbf24;
-    /* Amber 400 */
-    --boolean-color: #60a5fa;
-    /* Blue 400 */
-    --null-color: #94a3b8;
-    /* Slate 400 */
-    --link-color: #60a5fa;
-    --border-color: #334155;
-    --hover-bg: #1e293b;
-    --toolbar-bg: rgba(15, 23, 42, 0.8);
-    --toast-bg: #ffffff;
-    --toast-text: #0f172a;
-  }
-}
-
 body.dark-theme {
   --bg-color: #0f172a;
   /* Slate 900 */
