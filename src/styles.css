@@ -679,6 +679,8 @@ body.json-viewer-active {
   box-sizing: border-box;
   user-select: none;
   flex-shrink: 0; /* Prevent shrinking */
+  position: relative; /* Ensure content is positioned relative to gutter */
+  z-index: 3;
 }
 
 @media (max-width: 480px) {
