@@ -32,14 +32,26 @@ export class Viewer {
             console.log('JSON Viewer: Applied dark theme classes');
         }
 
-        this.render();
+        this.renderStructure();
         this.setupKeyboardShortcuts();
     }
 
-    render() {
+    renderStructure() {
         this.root.innerHTML = '';
+        
+        this.toolbarContainer = document.createElement('div');
+        this.root.appendChild(this.toolbarContainer);
 
-        // Toolbar
+        this.contentContainer = document.createElement('div');
+        this.contentContainer.className = 'jv-content';
+        this.root.appendChild(this.contentContainer);
+
+        this.renderToolbar();
+        this.renderContent();
+    }
+
+    renderToolbar() {
+        this.toolbarContainer.innerHTML = '';
         this.toolbar = new Toolbar({
             onSearch: (query) => this.handleSearch(query),
             onSearchNext: (backwards) => this.handleSearchNext(backwards),
@@ -54,170 +66,144 @@ export class Viewer {
             currentView: this.currentView,
             searchQuery: this.searchQuery
         });
-        this.root.appendChild(this.toolbar.element);
+        this.toolbarContainer.appendChild(this.toolbar.element);
+    }
 
-        // Content Container
-        this.contentContainer = document.createElement('div');
-        this.contentContainer.className = 'jv-content';
-        this.root.appendChild(this.contentContainer);
-
+    // Legacy render method redirected
+    render() {
+        this.renderToolbar();
         this.renderContent();
     }
 
     renderContent() {
-        // Check if view is already cached
-        if (this.viewCache[this.currentView]) {
-            this.contentContainer.innerHTML = '';
-            this.contentContainer.appendChild(this.viewCache[this.currentView]);
-            
-            // Restore treeView reference if needed
-            if (this.currentView === 'tree') {
-                this.treeView = this.viewCache[this.currentView]._treeView;
+        // Hide all existing views and save state
+        Array.from(this.contentContainer.children).forEach(child => {
+            if (child.style.display !== 'none') {
+                // Save scroll state for editor
+                if (child.classList.contains('jv-editor-container')) {
+                    const textarea = child.querySelector('textarea');
+                    if (textarea) child._savedScrollTop = textarea.scrollTop;
+                }
+                child.style.display = 'none';
             }
-            return;
+        });
+
+        // Check if view is already cached
+        let viewElement = this.viewCache[this.currentView];
+
+        if (!viewElement) {
+            // Create new view
+            if (this.currentView === 'tree') {
+                const container = document.createElement('div');
+                container.className = 'jv-schema-container';
+                
+                const treeContainer = document.createElement('div');
+                treeContainer.className = 'jv-schema-tree';
+                treeContainer.style.flex = '1';
+
+                this.treeView = new TreeView(this.data, this.searchQuery);
+                treeContainer.appendChild(this.treeView.element);
+
+                container.appendChild(treeContainer);
+                container._treeView = this.treeView; // Store reference
+                
+                viewElement = container;
+                
+                // Auto expand if searching
+                if (this.searchQuery.length > 2) {
+                    this.treeView.expandAll();
+                }
+
+            } else if (this.currentView === 'editor') {
+                const editor = new EditorView(this.data, (newData) => {
+                    this.data = newData;
+                    this.rawData = JSON.stringify(newData, null, 2);
+                    // Clear cache to force re-render of other views with new data
+                    // We need to remove elements from DOM too
+                    this.viewCache = {};
+                    this.contentContainer.innerHTML = '';
+                    // Re-render current view
+                    this.renderContent();
+                });
+                this.editorView = editor;
+                viewElement = editor.element;
+                viewElement._editorView = editor; // Store reference
+
+            } else if (this.currentView === 'raw') {
+                const container = document.createElement('div');
+                container.className = 'jv-schema-container';
+                
+                const textarea = document.createElement('textarea');
+                textarea.className = 'jv-raw';
+                
+                const MAX_RAW_SIZE = 1000000; // 1MB
+                if (this.rawData.length > MAX_RAW_SIZE) {
+                    textarea.value = this.rawData.substring(0, MAX_RAW_SIZE) + '\n\n... (Truncated for performance. Use "Save JSON" to download full content.)';
+                } else {
+                    textarea.value = this.rawData;
+                }
+
+                textarea.readOnly = true;
+                textarea.style.flex = '1';
+
+                container.appendChild(textarea);
+                viewElement = container;
+
+            } else if (this.currentView === 'schema') {
+                const schema = new SchemaView(this.data, this.searchQuery);
+                this.schemaView = schema;
+                viewElement = schema.element;
+                viewElement._schemaView = schema;
+
+            } else if (this.currentView === 'yaml') {
+                const yaml = new YamlView(this.data, this.searchQuery);
+                this.yamlView = yaml;
+                viewElement = yaml.element;
+                viewElement._yamlView = yaml;
+            }
+
+            // Cache and append
+            if (viewElement) {
+                this.viewCache[this.currentView] = viewElement;
+                this.contentContainer.appendChild(viewElement);
+            }
         }
 
-        this.contentContainer.innerHTML = '';
+        // Restore references from cached element
+        if (viewElement) {
+            if (this.currentView === 'tree') this.treeView = viewElement._treeView;
+            if (this.currentView === 'editor') this.editorView = viewElement._editorView;
+            if (this.currentView === 'schema') this.schemaView = viewElement._schemaView;
+            if (this.currentView === 'yaml') this.yamlView = viewElement._yamlView;
 
-        // Helper to create the standard toolbar for JSON views
-        const createJsonToolbar = (includeTreeActions = false, includeRawActions = false, textarea = null) => {
-            const toolbar = document.createElement('div');
-            toolbar.className = 'jv-schema-toolbar'; // Reuse existing style
+            // Show view
+            viewElement.style.display = 'flex'; // Most views use flex
 
-            if (includeTreeActions) {
-                const expandBtn = document.createElement('button');
-                expandBtn.className = 'jv-btn';
-                expandBtn.innerHTML = `${Icons.expand} <span>Expand All</span>`;
-                expandBtn.onclick = () => this.handleExpandAll();
-                toolbar.appendChild(expandBtn);
-
-                const collapseBtn = document.createElement('button');
-                collapseBtn.className = 'jv-btn';
-                collapseBtn.innerHTML = `${Icons.collapse} <span>Collapse All</span>`;
-                collapseBtn.onclick = () => this.handleCollapseAll();
-                toolbar.appendChild(collapseBtn);
-
-                // Separator
-                const sep = document.createElement('div');
-                sep.className = 'jv-separator';
-                toolbar.appendChild(sep);
+            // Restore scroll state for editor
+            if (this.currentView === 'editor' && viewElement._savedScrollTop !== undefined) {
+                const textarea = viewElement.querySelector('textarea');
+                if (textarea) {
+                    textarea.scrollTop = viewElement._savedScrollTop;
+                    // Trigger scroll handler to update virtualization
+                    if (this.editorView) {
+                        this.editorView.handleScroll();
+                        // Double check after layout to ensure scroll is applied
+                        requestAnimationFrame(() => {
+                             textarea.scrollTop = viewElement._savedScrollTop;
+                             this.editorView.handleScroll();
+                        });
+                    }
+                }
             }
-
-            if (includeRawActions && textarea) {
-                const wrapBtn = document.createElement('button');
-                wrapBtn.className = 'jv-btn';
-                wrapBtn.innerHTML = `${Icons.link} <span>Word Wrap</span>`; // Reusing link icon for now
-                wrapBtn.onclick = () => {
-                    const isWrapped = textarea.style.whiteSpace === 'pre-wrap';
-                    textarea.style.whiteSpace = isWrapped ? 'pre' : 'pre-wrap';
-                    wrapBtn.classList.toggle('active', !isWrapped);
-                };
-                toolbar.appendChild(wrapBtn);
-
-                // Separator
-                const sep = document.createElement('div');
-                sep.className = 'jv-separator';
-                toolbar.appendChild(sep);
-            }
-
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'jv-btn';
-            copyBtn.innerHTML = `${Icons.copy} <span>Copy JSON</span>`;
-            copyBtn.onclick = () => this.copyToClipboard();
-            toolbar.appendChild(copyBtn);
-
-            const saveBtn = document.createElement('button');
-            saveBtn.className = 'jv-btn';
-            saveBtn.innerHTML = `${Icons.save} <span>Save JSON</span>`;
-            saveBtn.onclick = () => this.handleSave();
-            toolbar.appendChild(saveBtn);
-
-            return toolbar;
-        };
-
-        if (this.currentView === 'tree') {
-            const container = document.createElement('div');
-            container.className = 'jv-schema-container';
-            // Toolbar removed - moved to global toolbar
-
-            const treeContainer = document.createElement('div');
-            treeContainer.className = 'jv-schema-tree'; // Reuse for scrolling
-            treeContainer.style.flex = '1';
-
-            this.treeView = new TreeView(this.data, this.searchQuery);
-            treeContainer.appendChild(this.treeView.element);
-
-            container.appendChild(treeContainer);
-            container._treeView = this.treeView; // Store reference
-            this.contentContainer.appendChild(container);
-            
-            // Cache the view
-            this.viewCache[this.currentView] = container;
-
-            // Auto expand if searching
-            if (this.searchQuery.length > 2) {
-                this.treeView.expandAll();
-            }
-
-        } else if (this.currentView === 'editor') {
-            const editor = new EditorView(this.data, (newData) => {
-                this.data = newData;
-                this.rawData = JSON.stringify(newData, null, 2);
-                // Clear cache to force re-render of other views with new data
-                this.viewCache = {};
-            });
-            this.editorView = editor; // Store reference for toolbar actions
-            this.contentContainer.appendChild(editor.element);
-            this.viewCache[this.currentView] = editor.element;
-
-        } else if (this.currentView === 'raw') {
-            const container = document.createElement('div');
-            container.className = 'jv-schema-container';
-            
-            const textarea = document.createElement('textarea');
-            textarea.className = 'jv-raw';
-            
-            // Toolbar removed - moved to global toolbar
-            
-            // Truncate large raw data
-            const MAX_RAW_SIZE = 1000000; // 1MB
-            if (this.rawData.length > MAX_RAW_SIZE) {
-                textarea.value = this.rawData.substring(0, MAX_RAW_SIZE) + '\n\n... (Truncated for performance. Use "Save JSON" to download full content.)';
-            } else {
-                textarea.value = this.rawData;
-            }
-
-            textarea.readOnly = true;
-            textarea.style.flex = '1'; // Ensure it takes remaining space
-
-            container.appendChild(textarea);
-            this.contentContainer.appendChild(container);
-            
-            // Cache the view
-            this.viewCache[this.currentView] = container;
-
-        } else if (this.currentView === 'schema') {
-            const schema = new SchemaView(this.data, this.searchQuery);
-            this.schemaView = schema; // Store reference
-            this.contentContainer.appendChild(schema.element);
-            
-            // Cache the view
-            this.viewCache[this.currentView] = schema.element;
-            
-        } else if (this.currentView === 'yaml') {
-            const yaml = new YamlView(this.data, this.searchQuery);
-            this.yamlView = yaml; // Store reference
-            this.contentContainer.appendChild(yaml.element);
-            
-            // Cache the view
-            this.viewCache[this.currentView] = yaml.element;
         }
     }
 
     switchView(view) {
         this.currentView = view;
-        // Re-render entire app to update toolbar actions
-        this.render();
+        // Update toolbar actions
+        this.renderToolbar();
+        // Update content visibility
+        this.renderContent();
         
         // Re-apply search highlights if needed
         if (this.searchQuery) {
