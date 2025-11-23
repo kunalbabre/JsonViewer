@@ -1,7 +1,7 @@
 import { Icons } from './Icons.js';
 
 export class Toolbar {
-    constructor({ onSearch, onSearchNext, onViewChange, onThemeToggle, onCopy, onExpandAll, onCollapseAll, onSave, currentView }) {
+    constructor({ onSearch, onSearchNext, onViewChange, onThemeToggle, onCopy, onExpandAll, onCollapseAll, onSave, onFormat, onApply, currentView }) {
         this.element = document.createElement('div');
         this.element.className = 'jv-toolbar-container';
 
@@ -79,14 +79,31 @@ export class Toolbar {
         const toolsGroup = document.createElement('div');
         toolsGroup.className = 'jv-tools-group';
 
-        if (currentView === 'tree') {
-            toolsGroup.appendChild(this.createButton(Icons.expand, 'Expand All', onExpandAll, 'Expand'));
-            toolsGroup.appendChild(this.createButton(Icons.collapse, 'Collapse All', onCollapseAll, 'Collapse'));
+        if (onFormat) {
+            toolsGroup.appendChild(this.createButton(Icons.format, 'Format JSON', onFormat, 'Format'));
+        }
+        if (onApply) {
+            toolsGroup.appendChild(this.createButton(Icons.save, 'Apply Changes', onApply, 'Apply'));
             this.createSeparator(toolsGroup);
         }
 
-        toolsGroup.appendChild(this.createButton(Icons.copy, 'Copy to Clipboard', onCopy, 'Copy'));
-        toolsGroup.appendChild(this.createButton(Icons.save, 'Save to File', onSave, 'Save'));
+        if (onExpandAll) {
+            toolsGroup.appendChild(this.createButton(Icons.expand, 'Expand All', onExpandAll, 'Expand'));
+        }
+        if (onCollapseAll) {
+            toolsGroup.appendChild(this.createButton(Icons.collapse, 'Collapse All', onCollapseAll, 'Collapse'));
+        }
+        
+        if ((onExpandAll || onCollapseAll) && (onCopy || onSave)) {
+            this.createSeparator(toolsGroup);
+        }
+
+        if (onCopy) {
+            toolsGroup.appendChild(this.createButton(Icons.copy, 'Copy to Clipboard', onCopy, 'Copy'));
+        }
+        if (onSave) {
+            toolsGroup.appendChild(this.createButton(Icons.save, 'Save to File', onSave, 'Save'));
+        }
 
         actionBar.appendChild(toolsGroup);
         this.element.appendChild(actionBar);

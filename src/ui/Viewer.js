@@ -46,9 +46,11 @@ export class Viewer {
             onViewChange: (view) => this.switchView(view),
             onThemeToggle: () => this.toggleTheme(),
             onCopy: () => this.copyToClipboard(),
-            onExpandAll: () => this.handleExpandAll(),
-            onCollapseAll: () => this.handleCollapseAll(),
+            onExpandAll: this.currentView === 'tree' || this.currentView === 'schema' ? () => this.handleExpandAll() : null,
+            onCollapseAll: this.currentView === 'tree' || this.currentView === 'schema' ? () => this.handleCollapseAll() : null,
             onSave: () => this.handleSave(),
+            onFormat: this.currentView === 'editor' ? () => this.editorView?.format() : null,
+            onApply: this.currentView === 'editor' ? () => this.editorView?.applyChanges() : null,
             currentView: this.currentView
         });
         this.root.appendChild(this.toolbar.element);
@@ -135,7 +137,7 @@ export class Viewer {
         if (this.currentView === 'tree') {
             const container = document.createElement('div');
             container.className = 'jv-schema-container';
-            container.appendChild(createJsonToolbar(true)); // Include tree actions
+            // Toolbar removed - moved to global toolbar
 
             const treeContainer = document.createElement('div');
             treeContainer.className = 'jv-schema-tree'; // Reuse for scrolling
@@ -162,10 +164,8 @@ export class Viewer {
                 this.rawData = JSON.stringify(newData, null, 2);
                 // Clear cache to force re-render of other views with new data
                 this.viewCache = {};
-                // Re-cache this editor instance so we don't lose cursor position/state if we switch back immediately
-                // Actually, if we update data, we probably want to re-render everything.
-                // But for now, let's just update the data reference.
             });
+            this.editorView = editor; // Store reference for toolbar actions
             this.contentContainer.appendChild(editor.element);
             this.viewCache[this.currentView] = editor.element;
 
@@ -176,8 +176,7 @@ export class Viewer {
             const textarea = document.createElement('textarea');
             textarea.className = 'jv-raw';
             
-            // Add toolbar with textarea reference
-            container.appendChild(createJsonToolbar(false, true, textarea));
+            // Toolbar removed - moved to global toolbar
             
             // Truncate large raw data
             const MAX_RAW_SIZE = 1000000; // 1MB
@@ -198,6 +197,7 @@ export class Viewer {
 
         } else if (this.currentView === 'schema') {
             const schema = new SchemaView(this.data, this.searchQuery);
+            this.schemaView = schema; // Store reference
             this.contentContainer.appendChild(schema.element);
             
             // Cache the view
@@ -214,8 +214,8 @@ export class Viewer {
 
     switchView(view) {
         this.currentView = view;
-        this.toolbar.updateActiveView(view);
-        this.renderContent();
+        // Re-render entire app to update toolbar actions
+        this.render();
         
         // Re-apply search highlights if needed
         if (this.searchQuery) {
@@ -401,12 +401,16 @@ export class Viewer {
     handleExpandAll() {
         if (this.currentView === 'tree' && this.treeView) {
             this.treeView.expandAll();
+        } else if (this.currentView === 'schema' && this.schemaView && this.schemaView.treeView) {
+            this.schemaView.treeView.expandAll();
         }
     }
 
     handleCollapseAll() {
         if (this.currentView === 'tree' && this.treeView) {
             this.treeView.collapseAll();
+        } else if (this.currentView === 'schema' && this.schemaView && this.schemaView.treeView) {
+            this.schemaView.treeView.collapseAll();
         }
     }
 

@@ -18,24 +18,6 @@ export class EditorView {
     }
 
     render() {
-        // Toolbar
-        const toolbar = document.createElement('div');
-        toolbar.className = 'jv-schema-toolbar';
-
-        const formatBtn = document.createElement('button');
-        formatBtn.className = 'jv-btn';
-        formatBtn.innerHTML = `${Icons.format} <span>Format</span>`;
-        formatBtn.onclick = () => this.format();
-        toolbar.appendChild(formatBtn);
-
-        const applyBtn = document.createElement('button');
-        applyBtn.className = 'jv-btn';
-        applyBtn.innerHTML = `${Icons.save} <span>Apply Changes</span>`;
-        applyBtn.onclick = () => this.applyChanges();
-        toolbar.appendChild(applyBtn);
-
-        this.element.appendChild(toolbar);
-
         // Editor Area
         const editorWrapper = document.createElement('div');
         editorWrapper.className = 'jv-editor-wrapper';

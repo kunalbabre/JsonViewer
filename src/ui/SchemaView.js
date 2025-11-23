@@ -149,40 +149,9 @@ export class SchemaView {
         this.element.innerHTML = '';
         const schemaString = JSON.stringify(schema, null, 2);
         const tree = new TreeView(schema, this.searchQuery);
-
-        // Toolbar
-        const toolbar = document.createElement('div');
-        toolbar.className = 'jv-schema-toolbar';
-
-        const expandBtn = document.createElement('button');
-        expandBtn.className = 'jv-btn';
-        expandBtn.innerHTML = `${Icons.expand} <span>Expand All</span>`;
-        expandBtn.onclick = () => tree.expandAll();
-        toolbar.appendChild(expandBtn);
-
-        const collapseBtn = document.createElement('button');
-        collapseBtn.className = 'jv-btn';
-        collapseBtn.innerHTML = `${Icons.collapse} <span>Collapse All</span>`;
-        collapseBtn.onclick = () => tree.collapseAll();
-        toolbar.appendChild(collapseBtn);
-
-        const sep = document.createElement('div');
-        sep.className = 'jv-separator';
-        toolbar.appendChild(sep);
-
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'jv-btn';
-        copyBtn.innerHTML = `${Icons.copy} <span>Copy Schema</span>`;
-        copyBtn.onclick = () => {
-            navigator.clipboard.writeText(schemaString).then(() => {
-                Toast.show('Schema copied to clipboard');
-            }).catch((e) => {
-                Toast.show('Failed to copy: ' + e.message);
-            });
-        };
-        toolbar.appendChild(copyBtn);
-
-        this.element.appendChild(toolbar);
+        
+        // Expose tree for external control
+        this.treeView = tree;
 
         const treeContainer = document.createElement('div');
         treeContainer.className = 'jv-schema-tree';

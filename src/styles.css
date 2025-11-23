@@ -186,6 +186,7 @@ body.json-viewer-active {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: nowrap; /* Prevent wrapping */
 }
 
 .jv-btn {
@@ -203,6 +204,7 @@ body.json-viewer-active {
   font-weight: 500;
   font-size: 0.8rem;
   white-space: nowrap;
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .jv-btn:hover {
