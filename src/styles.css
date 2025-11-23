@@ -525,15 +525,14 @@ body.json-viewer-active {
   width: 100%;
   height: 100%;
   margin: 0;
-  padding: 0 1rem;
   border: none;
   box-sizing: border-box;
   overflow: auto;
   white-space: pre;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  letter-spacing: inherit;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace; /* Enforce specific mono stack */
+  font-size: 14px;
+  line-height: 21px;
+  letter-spacing: 0px; /* Explicit 0 */
   tab-size: 2;
   -moz-tab-size: 2;
 }
@@ -545,6 +544,7 @@ body.json-viewer-active {
   caret-color: var(--text-color);
   resize: none;
   outline: none;
+  padding: 0 1rem; /* Explicit padding */
   /* Performance optimizations */
   text-rendering: optimizeSpeed;
   font-variant-ligatures: none;
@@ -552,17 +552,13 @@ body.json-viewer-active {
   overflow-anchor: none;
 }
 
-/* When editing (dirty state), show the raw text to prevent invisible typing lag */
-.jv-editor-textarea.dirty {
-  color: var(--text-color);
-}
-
 .jv-editor-pre {
   z-index: 1;
   background-color: var(--bg-color);
   color: var(--text-color);
   pointer-events: none;
-  overflow: hidden; /* Virtualization viewport */
+  overflow: hidden;
+  padding: 0; /* Remove padding from container */
   /* Match textarea exactly */
   text-rendering: optimizeSpeed;
   font-variant-ligatures: none;
@@ -575,7 +571,7 @@ body.json-viewer-active {
   left: 0;
   width: 100%;
   will-change: transform;
-  padding: 0 1rem; /* Match container padding */
+  padding: 0 1rem; /* Match textarea padding exactly */
   box-sizing: border-box;
   /* Match textarea exactly */
   text-rendering: optimizeSpeed;

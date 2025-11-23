@@ -86,6 +86,12 @@ export class EditorView {
         
         this.code = document.createElement('code');
         this.code.className = 'jv-editor-code';
+        // Force font style inline
+        this.code.style.fontFamily = "'Menlo', 'Monaco', 'Courier New', monospace";
+        this.code.style.fontSize = "14px";
+        this.code.style.lineHeight = "21px";
+        this.code.style.letterSpacing = "0px";
+        
         this.pre.appendChild(this.code);
 
         this.textarea = document.createElement('textarea');
@@ -96,6 +102,12 @@ export class EditorView {
         this.textarea.setAttribute('autocorrect', 'off');
         this.textarea.setAttribute('autocapitalize', 'off');
         this.textarea.setAttribute('data-gramm', 'false'); // Disable Grammarly
+        
+        // Force font style inline to be absolutely sure
+        this.textarea.style.fontFamily = "'Menlo', 'Monaco', 'Courier New', monospace";
+        this.textarea.style.fontSize = "14px";
+        this.textarea.style.lineHeight = "21px";
+        this.textarea.style.letterSpacing = "0px";
         
         // Event Listeners
         this.textarea.oninput = () => this.handleInput();
@@ -536,15 +548,14 @@ export class EditorView {
         // We subtract scrollTop because the 'pre' container is fixed to the viewport,
         // so we need to shift the content up to match the scroll position.
         const topOffset = (renderStartLine * this.lineHeight) - scrollTop;
+        const leftOffset = -this.textarea.scrollLeft;
         
         // Sync width to enable native scrolling behavior
-        this.code.style.width = `${this.textarea.scrollWidth}px`;
+        this.code.style.width = `${Math.max(this.textarea.scrollWidth, this.textarea.clientWidth)}px`;
         
-        this.code.style.transform = `translateY(${topOffset}px)`;
+        // Use translate for both X and Y to ensure perfect sync
+        this.code.style.transform = `translate(${leftOffset}px, ${topOffset}px)`;
         this.gutterContent.style.transform = `translateY(${topOffset}px)`;
-        
-        // Sync horizontal scroll immediately
-        this.pre.scrollLeft = this.textarea.scrollLeft;
         
         // Update active line position as well since scrollTop changed
         if (this.currentActiveLine !== undefined) {
