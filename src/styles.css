@@ -458,7 +458,9 @@ body.json-viewer-active {
   position: relative;
   overflow: hidden;
   font-family: var(--mono-font);
-  font-size: 0.9rem;
+  font-size: 14px; /* Explicit pixel size */
+  line-height: 21px; /* Explicit pixel size to prevent sub-pixel drift */
+  contain: strict; /* Optimization for layout */
 }
 
 .jv-editor-textarea,
@@ -469,12 +471,16 @@ body.json-viewer-active {
   width: 100%;
   height: 100%;
   margin: 0;
-  padding: 1rem;
+  padding: 0 1rem; /* Move padding to sides only, handle top/bottom via line-height alignment if needed */
   border: none;
   box-sizing: border-box;
   overflow: auto;
   white-space: pre;
-  line-height: 1.5;
+  /* Inherit explicit values */
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
 }
 
 .jv-editor-textarea {
@@ -484,11 +490,6 @@ body.json-viewer-active {
   caret-color: var(--text-color);
   resize: none;
   outline: none;
-  /* Ensure font rendering matches exactly */
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  letter-spacing: inherit;
 }
 
 /* When editing (dirty state), show the raw text to prevent invisible typing lag */
@@ -502,11 +503,6 @@ body.json-viewer-active {
   color: var(--text-color);
   pointer-events: none;
   overflow: hidden; /* Virtualization viewport */
-  /* Ensure font rendering matches exactly */
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  letter-spacing: inherit;
 }
 
 .jv-editor-code {
@@ -516,7 +512,7 @@ body.json-viewer-active {
   left: 0;
   width: 100%;
   will-change: transform;
-  padding: 1rem; /* Match container padding */
+  padding: 0 1rem; /* Match container padding */
   box-sizing: border-box;
 }
 

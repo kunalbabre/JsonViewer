@@ -9,8 +9,8 @@ export class EditorView {
         this.element = document.createElement('div');
         this.element.className = 'jv-editor-container';
         
-        this.lineOffsets = [];
-        this.lineHeight = 21; // Default estimate
+        this.lineOffsets = null; // Will be Uint32Array
+        this.lineHeight = 21; // Matches CSS
         this.render();
     }
 
@@ -50,6 +50,10 @@ export class EditorView {
         this.textarea.className = 'jv-editor-textarea';
         this.textarea.value = this.content;
         this.textarea.spellcheck = false;
+        this.textarea.setAttribute('autocomplete', 'off');
+        this.textarea.setAttribute('autocorrect', 'off');
+        this.textarea.setAttribute('autocapitalize', 'off');
+        this.textarea.setAttribute('data-gramm', 'false'); // Disable Grammarly
         
         // Event Listeners
         this.textarea.oninput = () => this.handleInput();
@@ -64,27 +68,45 @@ export class EditorView {
     }
 
     init() {
-        this.measureLineHeight();
+        // We use fixed line height from CSS now, so measurement is less critical but good for verification
+        // this.measureLineHeight(); 
+        this.lineHeight = 21; // Hardcoded to match CSS for stability
         this.scanLines(this.content);
         this.updateVirtualWindow();
     }
 
-    measureLineHeight() {
-        const div = document.createElement('div');
-        div.style.cssText = 'position:absolute;visibility:hidden;height:auto;width:auto;white-space:pre;font-family:var(--mono-font);font-size:0.9rem;line-height:1.5;padding:0;border:0;';
-        div.textContent = 'M';
-        this.element.appendChild(div);
-        this.lineHeight = div.offsetHeight;
-        this.element.removeChild(div);
-    }
-
     scanLines(text) {
-        this.lineOffsets = [0];
+        // Use Uint32Array for memory efficiency (4 bytes per line vs ~8-16 bytes for JS numbers)
+        // 100MB file with 30 chars/line = ~3.3M lines. 
+        // Uint32Array = 13MB. JS Array = ~50MB+.
+        
+        const estimatedLines = Math.max(1000, Math.ceil(text.length / 40));
+        let offsets = new Uint32Array(estimatedLines);
+        let count = 0;
+        
+        offsets[count++] = 0;
         let pos = -1;
+        
         while ((pos = text.indexOf('\n', pos + 1)) !== -1) {
-            this.lineOffsets.push(pos + 1);
+            if (count === offsets.length) {
+                // Resize
+                const newOffsets = new Uint32Array(offsets.length * 2);
+                newOffsets.set(offsets);
+                offsets = newOffsets;
+            }
+            offsets[count++] = pos + 1;
         }
-        this.lineOffsets.push(text.length + 1);
+        
+        // Add end
+        if (count === offsets.length) {
+            const newOffsets = new Uint32Array(offsets.length + 1);
+            newOffsets.set(offsets);
+            offsets = newOffsets;
+        }
+        offsets[count++] = text.length + 1;
+        
+        // Trim
+        this.lineOffsets = offsets.subarray(0, count);
     }
 
     handleInput() {
