@@ -79,6 +79,8 @@ export class EditorView {
         this.activeLine.className = 'jv-active-line';
         this.scroller.appendChild(this.activeLine);
 
+        const fontStack = "'SF Mono', Monaco, Menlo, Consolas, 'Ubuntu Mono', 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace";
+
         // Syntax highlighted editor structure (always used)
         this.pre = document.createElement('pre');
         this.pre.className = 'jv-editor-pre';
@@ -105,7 +107,6 @@ export class EditorView {
         this.textarea.setAttribute('data-gramm', 'false'); // Disable Grammarly
         
         // Force font style inline to be absolutely sure
-        const fontStack = "'SF Mono', Monaco, Menlo, Consolas, 'Ubuntu Mono', 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace";
         this.textarea.style.fontFamily = fontStack;
         this.textarea.style.fontSize = "14px";
         this.textarea.style.lineHeight = "21px";
