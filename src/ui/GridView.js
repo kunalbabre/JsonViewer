@@ -1,8 +1,13 @@
+// Performance tuning constants
+const GRID_BATCH_SIZE = 50; // Number of table rows to render per batch
+const COLUMN_SAMPLE_SIZE = 100; // Number of items to sample for column detection
+
 export class GridView {
     constructor(data, searchQuery = '') {
         this.data = data;
         this.searchQuery = searchQuery.toLowerCase();
         this.element = document.createElement('div');
+        this.element.className = 'jv-grid-container';
         this.render();
     }
 
@@ -16,13 +21,16 @@ export class GridView {
 
         // Collect all unique keys for columns
         const keys = new Set();
-        this.data.forEach(item => {
+        // Sample first items for column detection in large datasets
+        const sampleSize = Math.min(COLUMN_SAMPLE_SIZE, this.data.length);
+        for (let i = 0; i < sampleSize; i++) {
+            const item = this.data[i];
             if (typeof item === 'object' && item !== null) {
                 Object.keys(item).forEach(k => keys.add(k));
             } else {
                 keys.add('Value');
             }
-        });
+        }
         const columns = Array.from(keys);
 
         const table = document.createElement('table');
@@ -46,38 +54,76 @@ export class GridView {
         thead.appendChild(trHead);
         table.appendChild(thead);
 
-        // Body
+        // Body - use progressive rendering for large datasets
         const tbody = document.createElement('tbody');
-        this.data.forEach(item => {
-            const tr = document.createElement('tr');
-            columns.forEach(col => {
-                const td = document.createElement('td');
-                let val;
-                if (typeof item === 'object' && item !== null) {
-                    val = item[col];
-                } else if (col === 'Value') {
-                    val = item;
-                }
-
-                if (typeof val === 'object' && val !== null) {
-                    td.textContent = JSON.stringify(val).substring(0, 50) + '...';
-                    td.style.color = 'var(--null-color)';
-                } else {
-                    td.textContent = val !== undefined ? val : '';
-                }
-
-                // Highlight search match in cell value
-                if (this.searchQuery && td.textContent.toLowerCase().includes(this.searchQuery)) {
-                    td.style.backgroundColor = '#fef08a';
-                    td.style.color = '#000';
-                }
-
-                tr.appendChild(td);
-            });
-            tbody.appendChild(tr);
-        });
         table.appendChild(tbody);
+        
+        // For large arrays, render in batches
+        let rowIndex = 0;
 
+        const renderBatch = () => {
+            const end = Math.min(rowIndex + GRID_BATCH_SIZE, this.data.length);
+            
+            for (; rowIndex < end; rowIndex++) {
+                const item = this.data[rowIndex];
+                const tr = document.createElement('tr');
+                
+                columns.forEach(col => {
+                    const td = document.createElement('td');
+                    let val;
+                    if (typeof item === 'object' && item !== null) {
+                        val = item[col];
+                    } else if (col === 'Value') {
+                        val = item;
+                    }
+
+                    if (typeof val === 'object' && val !== null) {
+                        td.textContent = JSON.stringify(val).substring(0, 50) + '...';
+                        td.style.color = 'var(--null-color)';
+                    } else {
+                        td.textContent = val !== undefined ? val : '';
+                    }
+
+                    // Highlight search match in cell value
+                    if (this.searchQuery && td.textContent.toLowerCase().includes(this.searchQuery)) {
+                        td.style.backgroundColor = '#fef08a';
+                        td.style.color = '#000';
+                    }
+
+                    tr.appendChild(td);
+                });
+                
+                tbody.appendChild(tr);
+            }
+
+            if (rowIndex < this.data.length) {
+                // Show loading indicator between batches
+                if (rowIndex > 0 && rowIndex % GRID_BATCH_SIZE === 0) {
+                    const loadingRow = document.createElement('tr');
+                    const loadingCell = document.createElement('td');
+                    loadingCell.colSpan = columns.length;
+                    loadingCell.textContent = `Loading... (${rowIndex} of ${this.data.length} rows)`;
+                    loadingCell.style.textAlign = 'center';
+                    loadingCell.style.padding = '1rem';
+                    loadingCell.style.color = 'var(--null-color)';
+                    loadingCell.className = 'jv-loading-row';
+                    loadingRow.appendChild(loadingCell);
+                    tbody.appendChild(loadingRow);
+                }
+
+                // Continue rendering
+                requestAnimationFrame(() => {
+                    // Remove loading indicator
+                    const loadingRow = tbody.querySelector('.jv-loading-row');
+                    if (loadingRow) {
+                        loadingRow.remove();
+                    }
+                    renderBatch();
+                });
+            }
+        };
+
+        renderBatch();
         this.element.appendChild(table);
     }
 }

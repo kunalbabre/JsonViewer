@@ -14,6 +14,7 @@ export class Viewer {
         this.searchQuery = '';
         this.searchMatches = [];
         this.currentMatchIndex = -1;
+        this.searchDebounceTimer = null;
 
         // Detect system theme preference
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -148,6 +149,17 @@ export class Viewer {
     }
 
     handleSearch(query) {
+        // Debounce search to avoid excessive re-renders
+        if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer);
+        }
+
+        this.searchDebounceTimer = setTimeout(() => {
+            this.performSearch(query);
+        }, 300);
+    }
+
+    performSearch(query) {
         this.searchQuery = query.toLowerCase();
 
         // Fast search - just update highlights without re-rendering

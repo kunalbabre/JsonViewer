@@ -2,6 +2,9 @@ import { Icons } from './Icons.js';
 import { Toast } from './Toast.js';
 import { TreeView } from './TreeView.js';
 
+// Performance tuning constants
+const SCHEMA_SAMPLE_SIZE = 100; // Number of array items to sample for schema generation
+
 export class SchemaView {
     constructor(data, searchQuery = '') {
         this.data = data;
@@ -76,9 +79,18 @@ export class SchemaView {
         if (type === 'array') {
             const schema = { type: 'array' };
             if (data.length > 0) {
-                // Generate schema for all items and merge them
-                const itemSchemas = data.map(item => this.generateSchema(item));
+                // For large arrays, only sample first items to generate schema
+                const sampleSize = Math.min(SCHEMA_SAMPLE_SIZE, data.length);
+                const itemSchemas = [];
+                for (let i = 0; i < sampleSize; i++) {
+                    itemSchemas.push(this.generateSchema(data[i]));
+                }
                 schema.items = itemSchemas.reduce((acc, curr) => this.mergeSchemas(acc, curr));
+                
+                // Add note if array was sampled
+                if (data.length > sampleSize) {
+                    schema.note = `Schema generated from ${sampleSize} of ${data.length} items`;
+                }
             } else {
                 schema.items = {};
             }

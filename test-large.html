@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON Viewer Test - Large Dataset</title>
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+
+<body>
+  <pre id="json-data">
+  </pre>
+  <script>
+    // Generate a large JSON dataset on the fly
+    function generateLargeJSON() {
+      const data = {
+        meta: {
+          app: "JSON Viewer",
+          version: "2.0",
+          features: ["Tree", "Grid", "Raw", "Search", "Theming", "Performance"]
+        },
+        users: [],
+        products: [],
+        logs: []
+      };
+
+      // Generate users
+      for (let i = 0; i < 100; i++) {
+        data.users.push({
+          id: i,
+          name: `User ${i}`,
+          email: `user${i}@example.com`,
+          age: 20 + (i % 60),
+          active: i % 2 === 0,
+          address: {
+            street: `${i} Main St`,
+            city: `City ${i % 10}`,
+            state: `State ${i % 5}`,
+            zip: `${10000 + i}`
+          }
+        });
+      }
+
+      // Generate products
+      for (let i = 0; i < 200; i++) {
+        data.products.push({
+          id: i,
+          name: `Product ${i}`,
+          description: `Description for product ${i}`,
+          price: (Math.random() * 100).toFixed(2),
+          category: ['Electronics', 'Clothing', 'Food'][i % 3],
+          inStock: i % 3 !== 0
+        });
+      }
+
+      // Generate logs
+      for (let i = 0; i < 500; i++) {
+        data.logs.push({
+          id: i,
+          level: ['info', 'warning', 'error'][i % 3],
+          message: `Log message ${i}`,
+          timestamp: new Date(Date.now() - i * 1000).toISOString()
+        });
+      }
+
+      return data;
+    }
+
+    const largeData = generateLargeJSON();
+    const jsonString = JSON.stringify(largeData, null, 2);
+    
+    console.log(`Generated JSON size: ${(jsonString.length / 1024).toFixed(2)} KB`);
+    console.log(`Users: ${largeData.users.length}`);
+    console.log(`Products: ${largeData.products.length}`);
+    console.log(`Logs: ${largeData.logs.length}`);
+    
+    document.getElementById('json-data').textContent = jsonString;
+  </script>
+  <script type="module" src="src/content.js"></script>
+</body>
+
+</html>

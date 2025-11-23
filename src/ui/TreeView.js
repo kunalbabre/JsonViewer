@@ -1,6 +1,11 @@
 import { Icons } from './Icons.js';
 import { Toast } from './Toast.js';
 
+// Performance tuning constants
+const BATCH_SIZE = 100; // Number of nodes to render per animation frame
+const LARGE_OBJECT_THRESHOLD = 50; // Objects with more items auto-collapse
+const DEEP_NESTING_THRESHOLD = 1; // Nodes deeper than this auto-collapse
+
 export class TreeView {
     constructor(data, searchQuery = '', mode = 'json') {
         this.data = data;
@@ -11,10 +16,11 @@ export class TreeView {
         if (this.mode === 'yaml') {
             this.element.classList.add('jv-yaml-mode');
         }
-        this.render(this.data, this.element, '');
+        this.renderBatch(this.data, this.element, '', 0);
     }
 
-    render(data, container, path) {
+    // Batch rendering to prevent blocking the main thread
+    renderBatch(data, container, path, depth = 0) {
         if (typeof data === 'object' && data !== null) {
             const isArray = Array.isArray(data);
             const keys = Object.keys(data);
@@ -27,117 +33,180 @@ export class TreeView {
                 return;
             }
 
-            keys.forEach((key, index) => {
-                const value = data[key];
-                const currentPath = path ? (isArray ? `${path}[${key}]` : `${path}.${key}`) : key;
-                const node = document.createElement('div');
-                node.className = 'jv-node';
+            // For large datasets, render in chunks to avoid blocking
+            let index = 0;
 
-                const header = document.createElement('div');
-                header.className = 'jv-node-header';
-
-                // Toggler for objects/arrays
-                if (typeof value === 'object' && value !== null && Object.keys(value).length > 0) {
-                    const toggler = document.createElement('span');
-                    toggler.className = 'jv-toggler expanded';
-                    toggler.textContent = '▶';
-                    toggler.onclick = (e) => {
-                        e.stopPropagation();
-                        this.toggleNode(node, toggler);
-                    };
-                    header.appendChild(toggler);
-                    header.onclick = (e) => {
-                        if (!e.target.closest('.jv-actions')) {
-                            this.toggleNode(node, toggler);
-                        }
-                    };
-                } else {
-                    const spacer = document.createElement('span');
-                    spacer.className = 'jv-toggler'; // Invisible spacer
-                    header.appendChild(spacer);
+            const renderChunk = () => {
+                const end = Math.min(index + BATCH_SIZE, keys.length);
+                
+                for (; index < end; index++) {
+                    const key = keys[index];
+                    const value = data[key];
+                    const currentPath = path ? (isArray ? `${path}[${key}]` : `${path}.${key}`) : key;
+                    const node = this.createNode(key, value, currentPath, isArray, depth);
+                    container.appendChild(node);
                 }
 
-                // Key / Array Item Indicator
-                const keySpan = document.createElement('span');
-                keySpan.className = 'jv-key';
-
-                if (this.mode === 'yaml') {
-                    if (isArray) {
-                        keySpan.textContent = '- ';
-                        keySpan.style.color = 'var(--text-color)';
-                    } else {
-                        keySpan.textContent = `${key}: `;
-                    }
-                } else {
-                    // JSON Mode
-                    keySpan.textContent = `${key}:`;
+                if (index < keys.length) {
+                    // Use requestAnimationFrame for smooth rendering
+                    requestAnimationFrame(renderChunk);
                 }
+            };
 
-                // Highlight search match in key
-                if (this.searchQuery && key.toLowerCase().includes(this.searchQuery)) {
-                    keySpan.style.backgroundColor = '#fef08a';
-                    keySpan.style.color = '#000';
-                }
-
-                header.appendChild(keySpan);
-
-                // Value Preview or Type Indicator
-                if (typeof value !== 'object' || value === null) {
-                    const valSpan = this.createValueSpan(value);
-                    header.appendChild(valSpan);
-                } else {
-                    // For YAML, we don't usually show "Object" or "Array" text, just the structure
-                    // But keeping item count is useful
-                    if (this.mode === 'json') {
-                        const typeSpan = document.createElement('span');
-                        typeSpan.className = 'jv-val-null';
-                        typeSpan.textContent = Array.isArray(value) ? `Array` : 'Object';
-                        header.appendChild(typeSpan);
-                    }
-
-                    const countSpan = document.createElement('span');
-                    countSpan.className = 'jv-item-count';
-                    const count = Object.keys(value).length;
-                    countSpan.textContent = `${count} ${count === 1 ? 'item' : 'items'}`;
-                    header.appendChild(countSpan);
-                }
-
-                // Hover Actions
-                const actions = document.createElement('div');
-                actions.className = 'jv-actions';
-
-                const copyValBtn = this.createActionButton(Icons.copy, 'Copy Value', () => {
-                    const valToCopy = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
-                    this.copyText(valToCopy);
-                });
-                actions.appendChild(copyValBtn);
-
-                const copyPathBtn = this.createActionButton(Icons.link, 'Copy Path', () => {
-                    this.copyText(currentPath);
-                });
-                actions.appendChild(copyPathBtn);
-
-                header.appendChild(actions);
-                node.appendChild(header);
-
-                // Children Container
-                if (typeof value === 'object' && value !== null && Object.keys(value).length > 0) {
-                    const children = document.createElement('div');
-                    children.className = 'jv-children';
-                    this.render(value, children, currentPath);
-                    node.appendChild(children);
-                }
-
-                container.appendChild(node);
-            });
+            renderChunk();
         } else {
             container.appendChild(this.createValueSpan(data));
         }
     }
 
-    toggleNode(node, toggler) {
+    createNode(key, value, currentPath, isArray, depth) {
+        const node = document.createElement('div');
+        node.className = 'jv-node';
+
+        const header = document.createElement('div');
+        header.className = 'jv-node-header';
+
+        const isExpandable = typeof value === 'object' && value !== null && Object.keys(value).length > 0;
+
+        // Toggler for objects/arrays
+        if (isExpandable) {
+            const toggler = document.createElement('span');
+            const valueKeys = Object.keys(value);
+            // Start collapsed for deep nesting or large arrays/objects
+            const shouldCollapse = depth > DEEP_NESTING_THRESHOLD || valueKeys.length > LARGE_OBJECT_THRESHOLD;
+            toggler.className = shouldCollapse ? 'jv-toggler' : 'jv-toggler expanded';
+            toggler.textContent = '▶';
+            toggler.onclick = (e) => {
+                e.stopPropagation();
+                this.toggleNodeLazy(node, toggler, value, currentPath, depth);
+            };
+            header.appendChild(toggler);
+            header.onclick = (e) => {
+                if (!e.target.closest('.jv-actions')) {
+                    this.toggleNodeLazy(node, toggler, value, currentPath, depth);
+                }
+            };
+        } else {
+            const spacer = document.createElement('span');
+            spacer.className = 'jv-toggler'; // Invisible spacer
+            header.appendChild(spacer);
+        }
+
+        // Key / Array Item Indicator
+        const keySpan = document.createElement('span');
+        keySpan.className = 'jv-key';
+
+        if (this.mode === 'yaml') {
+            if (isArray) {
+                keySpan.textContent = '- ';
+                keySpan.style.color = 'var(--text-color)';
+            } else {
+                keySpan.textContent = `${key}: `;
+            }
+        } else {
+            // JSON Mode
+            keySpan.textContent = `${key}:`;
+        }
+
+        // Highlight search match in key
+        if (this.searchQuery && key.toLowerCase().includes(this.searchQuery)) {
+            keySpan.style.backgroundColor = '#fef08a';
+            keySpan.style.color = '#000';
+        }
+
+        header.appendChild(keySpan);
+
+        // Value Preview or Type Indicator
+        if (typeof value !== 'object' || value === null) {
+            const valSpan = this.createValueSpan(value);
+            header.appendChild(valSpan);
+        } else {
+            // For YAML, we don't usually show "Object" or "Array" text, just the structure
+            // But keeping item count is useful
+            if (this.mode === 'json') {
+                const typeSpan = document.createElement('span');
+                typeSpan.className = 'jv-val-null';
+                typeSpan.textContent = Array.isArray(value) ? `Array` : 'Object';
+                header.appendChild(typeSpan);
+            }
+
+            const countSpan = document.createElement('span');
+            countSpan.className = 'jv-item-count';
+            const count = valueKeys.length;
+            countSpan.textContent = `${count} ${count === 1 ? 'item' : 'items'}`;
+            header.appendChild(countSpan);
+        }
+
+        // Hover Actions
+        const actions = document.createElement('div');
+        actions.className = 'jv-actions';
+
+        const copyValBtn = this.createActionButton(Icons.copy, 'Copy Value', () => {
+            const valToCopy = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+            this.copyText(valToCopy);
+        });
+        actions.appendChild(copyValBtn);
+
+        const copyPathBtn = this.createActionButton(Icons.link, 'Copy Path', () => {
+            this.copyText(currentPath);
+        });
+        actions.appendChild(copyPathBtn);
+
+        header.appendChild(actions);
+        node.appendChild(header);
+
+        // Children Container - create placeholder if expandable
+        if (isExpandable) {
+            const children = document.createElement('div');
+            children.className = 'jv-children';
+            const toggler = node.querySelector('.jv-toggler');
+            const isInitiallyExpanded = toggler && toggler.classList.contains('expanded');
+            
+            if (isInitiallyExpanded) {
+                // Render children for initially expanded nodes
+                this.renderBatch(value, children, currentPath, depth + 1);
+            } else {
+                // Hide children for collapsed nodes
+                children.classList.add('hidden');
+            }
+            node.appendChild(children);
+        }
+
+        return node;
+    }
+
+    // Lazy toggle - only render children when expanding
+    toggleNodeLazy(node, toggler, value, currentPath, depth) {
         toggler.classList.toggle('expanded');
         const childrenContainer = node.querySelector('.jv-children');
+        
+        if (childrenContainer) {
+            const isExpanding = toggler.classList.contains('expanded');
+            
+            if (isExpanding && childrenContainer.children.length === 0) {
+                // Lazy load: render children only when first expanded
+                this.renderBatch(value, childrenContainer, currentPath, depth + 1);
+            }
+            
+            childrenContainer.classList.toggle('hidden');
+        }
+    }
+
+    render(data, container, path) {
+        // Legacy method kept for compatibility, delegates to renderBatch
+        this.renderBatch(data, container, path, 0);
+    }
+
+    // Legacy method kept for backward compatibility - delegates to lazy version
+    toggleNode(node, toggler) {
+        // Find the value and path to enable lazy loading
+        const childrenContainer = node.querySelector('.jv-children');
+        if (childrenContainer && childrenContainer.children.length === 0) {
+            // If children not loaded yet, this is called from old code
+            // We can't lazy load without the value, so just toggle visibility
+            console.warn('toggleNode called without lazy loading context - use toggleNodeLazy instead');
+        }
+        toggler.classList.toggle('expanded');
         if (childrenContainer) {
             childrenContainer.classList.toggle('hidden');
         }

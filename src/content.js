@@ -13,6 +13,9 @@ function isJSON(text) {
     }
 }
 
+// Performance tuning constant
+const LARGE_FILE_THRESHOLD = 1048576; // 1 MB threshold for showing loading indicator
+
 (async function () {
     try {
         let Viewer;
@@ -52,19 +55,33 @@ function isJSON(text) {
             console.log('JSON Viewer: JSON detected!');
 
             try {
-                const json = JSON.parse(content);
+                // Show loading indicator for large files
+                const isLargeFile = content.length > LARGE_FILE_THRESHOLD;
+                if (isLargeFile) {
+                    document.body.innerHTML = '';
+                    document.body.classList.add('json-viewer-active');
+                    const loader = document.createElement('div');
+                    loader.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100vh;font-size:18px;color:#666;';
+                    loader.innerHTML = '<div>Loading large JSON file...</div>';
+                    document.body.appendChild(loader);
+                }
 
-                // Clear existing content
-                document.body.innerHTML = '';
-                document.body.classList.add('json-viewer-active');
+                // Use setTimeout to allow UI to update before parsing
+                setTimeout(() => {
+                    const json = JSON.parse(content);
 
-                // Create root element
-                const root = document.createElement('div');
-                root.id = 'json-viewer-root';
-                document.body.appendChild(root);
+                    // Clear existing content
+                    document.body.innerHTML = '';
+                    document.body.classList.add('json-viewer-active');
 
-                // Initialize Viewer
-                new Viewer(root, json, content);
+                    // Create root element
+                    const root = document.createElement('div');
+                    root.id = 'json-viewer-root';
+                    document.body.appendChild(root);
+
+                    // Initialize Viewer
+                    new Viewer(root, json, content);
+                }, isLargeFile ? 100 : 0);
             } catch (e) {
                 console.error('JSON Viewer: Failed to parse JSON', e);
             }

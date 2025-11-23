@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON Viewer Test</title>
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+
+<body>
+  <pre>
+  {
+    "meta": {
+      "app": "JSON Viewer",
+      "version": "2.0",
+      "features": ["Tree", "Grid", "Raw", "Search", "Theming"]
+    },
+    "smart_values": {
+      "website": "https://google.com",
+      "image": "https://via.placeholder.com/150.png",
+      "color_hex": "#ef4444",
+      "color_rgb": "rgb(34, 197, 94)"
+    },
+    "deeply_nested": {
+      "level1": {
+        "level2": {
+          "level3": {
+            "level4": {
+              "message": "Hello from the deep!"
+            }
+          }
+        }
+      }
+    },
+    "users": [
+      { "id": 1, "name": "Alice", "email": "alice@example.com", "active": true },
+      { "id": 2, "name": "Bob", "email": "bob@example.com", "active": false },
+      { "id": 3, "name": "Charlie", "email": "charlie@example.com", "active": true, "role": "admin" }
+    ],
+    "mixed_array": [
+      1,
+      "string",
+      { "key": "value" }
+    ],
+    "stats": {
+      "visits": 12345,
+      "score": 98.6,
+      "null_value": null
+    }
+  }
+  </pre>
+  <script type="module" src="src/content.js"></script>
+</body>
+
+</html>
