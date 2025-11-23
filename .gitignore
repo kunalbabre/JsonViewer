@@ -1,5 +1,6 @@
 # Test files
 large-test.json
+demo.html
 *.log
 
 # OS files
