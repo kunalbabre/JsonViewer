@@ -19,8 +19,9 @@ function isJSON(text) {
     }
 }
 
-// Performance tuning constant - optimized for 50MB+ files
+// Performance tuning constants - optimized for 50MB+ files
 const LARGE_FILE_THRESHOLD = 5242880; // 5 MB threshold for showing loading indicator (increased from 1MB)
+const VERY_LARGE_FILE_THRESHOLD = 10485760; // 10 MB threshold for using Web Worker (non-blocking parse)
 
 // Listen for toggle command from background script
 if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
@@ -338,7 +339,7 @@ function scanForJsonCodeBlocks() {
             try {
                 // Show loading indicator for large files
                 const isLargeFile = content.length > LARGE_FILE_THRESHOLD;
-                const isVeryLargeFile = content.length > 10 * 1024 * 1024; // >10MB
+                const isVeryLargeFile = content.length > VERY_LARGE_FILE_THRESHOLD;
                 
                 if (isLargeFile) {
                     document.body.innerHTML = '';
@@ -354,6 +355,7 @@ function scanForJsonCodeBlocks() {
                 }
 
                 // For very large files, use Web Worker if available
+                // Note: Worker code is inlined to avoid CSP issues in extension context
                 const parseJSON = (text) => {
                     return new Promise((resolve, reject) => {
                         if (isVeryLargeFile && typeof Worker !== 'undefined') {
