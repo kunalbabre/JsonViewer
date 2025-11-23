@@ -2,9 +2,10 @@ import { Icons } from './Icons.js';
 import { Toast } from './Toast.js';
 
 export class EditorView {
-    constructor(data, onUpdate) {
+    constructor(data, onUpdate, options = {}) {
         this.data = data;
         this.onUpdate = onUpdate;
+        this.options = options;
         this.content = ''; // Load async
         this.element = document.createElement('div');
         this.element.className = 'jv-editor-container';
@@ -137,11 +138,20 @@ export class EditorView {
         
         // Initial load
         if (this.worker) {
-            this.worker.postMessage({ 
-                data: this.data, 
-                version: this.version,
-                action: 'stringify' 
-            });
+            if (this.options.isRaw) {
+                this.content = typeof this.data === 'string' ? this.data : String(this.data);
+                this.textarea.value = this.content;
+                this.loader.style.display = 'none';
+                this.isLoading = false;
+                // Trigger analysis (highlighting/validation)
+                this.worker.postMessage({ text: this.content, version: this.version });
+            } else {
+                this.worker.postMessage({ 
+                    data: this.data, 
+                    version: this.version,
+                    action: 'stringify' 
+                });
+            }
         }
     }
 

@@ -1,7 +1,7 @@
 import { Icons } from './Icons.js';
 
 export class Toolbar {
-    constructor({ onSearch, onSearchNext, onViewChange, onThemeToggle, onCopy, onExpandAll, onCollapseAll, onSave, onFormat, onApply, currentView, searchQuery }) {
+    constructor({ onSearch, onSearchNext, onViewChange, onThemeToggle, onCopy, onExpandAll, onCollapseAll, onSave, onFormat, onApply, currentView, searchQuery, disabledViews = [] }) {
         this.element = document.createElement('div');
         this.element.className = 'jv-toolbar-container';
 
@@ -21,7 +21,15 @@ export class Toolbar {
             const label = view === 'editor' ? 'Editor' : view.charAt(0).toUpperCase() + view.slice(1);
             btn.title = `${label} View`;
             btn.textContent = label;
-            btn.onclick = () => onViewChange(view);
+            
+            if (disabledViews.includes(view)) {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            } else {
+                btn.onclick = () => onViewChange(view);
+            }
+            
             this.viewButtons[view] = btn;
             leftGroup.appendChild(btn);
         });

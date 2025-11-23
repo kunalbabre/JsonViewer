@@ -28,16 +28,8 @@ chrome.devtools.network.onRequestFinished.addListener(request => {
             const trimmed = content.trim();
             if (trimmed.length < 2) return;
             
-            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
-                (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-                try {
-                    // Only add if it parses successfully
-                    JSON.parse(trimmed);
-                    addRequestToList(request);
-                } catch (e) {
-                    // Not valid JSON, ignore
-                }
-            }
+            // Add to list even if invalid JSON, as long as it's a JSON mime type
+            addRequestToList(request);
         });
     }
 });

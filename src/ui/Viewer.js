@@ -12,7 +12,7 @@ export class Viewer {
         this.data = data;
         this.rawData = rawData;
         this.options = options;
-        this.currentView = 'tree'; // tree, grid, raw, schema, yaml
+        this.currentView = options.isInvalid ? 'editor' : 'tree'; // Default to editor for invalid JSON
         this.searchQuery = '';
         this.searchMatches = [];
         this.currentMatchIndex = -1;
@@ -65,7 +65,8 @@ export class Viewer {
             onFormat: this.currentView === 'editor' ? () => this.editorView?.format() : null,
             onApply: this.currentView === 'editor' ? () => this.editorView?.applyChanges() : null,
             currentView: this.currentView,
-            searchQuery: this.searchQuery
+            searchQuery: this.searchQuery,
+            disabledViews: this.options.isInvalid ? ['tree', 'schema', 'yaml', 'grid'] : []
         });
         this.toolbarContainer.appendChild(this.toolbar.element);
     }
@@ -116,16 +117,23 @@ export class Viewer {
                 }
 
             } else if (this.currentView === 'editor') {
-                const editor = new EditorView(this.data, (newData) => {
+                const dataToUse = this.options.isInvalid ? this.rawData : this.data;
+                const editor = new EditorView(dataToUse, (newData) => {
                     this.data = newData;
                     this.rawData = JSON.stringify(newData, null, 2);
+                    
+                    if (this.options.isInvalid) {
+                        this.options.isInvalid = false;
+                        this.renderToolbar();
+                    }
+
                     // Clear cache to force re-render of other views with new data
                     // We need to remove elements from DOM too
                     this.viewCache = {};
                     this.contentContainer.innerHTML = '';
                     // Re-render current view
                     this.renderContent();
-                });
+                }, { isRaw: this.options.isInvalid });
                 this.editorView = editor;
                 viewElement = editor.element;
                 viewElement._editorView = editor; // Store reference
