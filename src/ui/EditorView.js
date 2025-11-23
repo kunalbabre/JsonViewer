@@ -40,6 +40,19 @@ export class EditorView {
         const editorWrapper = document.createElement('div');
         editorWrapper.className = 'jv-editor-wrapper';
 
+        // Gutter
+        this.gutter = document.createElement('div');
+        this.gutter.className = 'jv-editor-gutter';
+        this.gutterContent = document.createElement('div');
+        this.gutterContent.className = 'jv-gutter-content';
+        this.gutter.appendChild(this.gutterContent);
+        editorWrapper.appendChild(this.gutter);
+
+        // Scroller
+        this.scroller = document.createElement('div');
+        this.scroller.className = 'jv-editor-scroller';
+        editorWrapper.appendChild(this.scroller);
+
         // Loading State
         this.loader = document.createElement('div');
         this.loader.className = 'jv-editor-loader';
@@ -59,7 +72,12 @@ export class EditorView {
             color: var(--text-color);
             gap: 1rem;
         `;
-        editorWrapper.appendChild(this.loader);
+        this.scroller.appendChild(this.loader);
+
+        // Active Line Highlight
+        this.activeLine = document.createElement('div');
+        this.activeLine.className = 'jv-active-line';
+        this.scroller.appendChild(this.activeLine);
 
         // Syntax highlighted editor structure (always used)
         this.pre = document.createElement('pre');
@@ -83,9 +101,11 @@ export class EditorView {
         this.textarea.oninput = () => this.handleInput();
         this.textarea.onscroll = () => this.handleScroll();
         this.textarea.onkeydown = (e) => this.handleKeydown(e);
+        this.textarea.onclick = () => this.updateActiveLine();
+        this.textarea.onkeyup = () => this.updateActiveLine();
         
-        editorWrapper.appendChild(this.pre);
-        editorWrapper.appendChild(this.textarea);
+        this.scroller.appendChild(this.pre);
+        this.scroller.appendChild(this.textarea);
         this.element.appendChild(editorWrapper);
 
         // Initialize
@@ -331,6 +351,9 @@ export class EditorView {
     }
 
     handleInput() {
+        // Update active line first so virtual window can render gutter correctly
+        this.updateActiveLine();
+        
         // Optimistic update: Render the visible part immediately using the live value
         // This prevents the "flash" of raw text and makes typing feel instant.
         this.updateVirtualWindow(this.textarea.value);
@@ -368,7 +391,60 @@ export class EditorView {
         this.pre.scrollLeft = this.textarea.scrollLeft;
         
         // Virtualize vertical scroll
-        requestAnimationFrame(() => this.updateVirtualWindow());
+        requestAnimationFrame(() => {
+            this.updateVirtualWindow();
+            this.updateActiveLine();
+        });
+    }
+
+    updateActiveLine() {
+        if (!this.lineOffsets || !this.lineHeight) return;
+
+        const cursor = this.textarea.selectionStart;
+        
+        // Binary search for line number
+        let low = 0, high = this.lineCount - 1;
+        let line = 0;
+
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            if (this.lineOffsets[mid] <= cursor) {
+                line = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+
+        // Update active line visual
+        // We need to position the active line highlight relative to the scroller content
+        // But since we are virtualized, we can just position it absolutely in the scroller
+        // The scroller has the full height? No, the scroller is the viewport.
+        // The textarea has the full height.
+        // The activeLine element is inside scroller (viewport).
+        // So we need to position it relative to the viewport (scrollTop).
+        
+        const scrollTop = this.textarea.scrollTop;
+        const top = (line * this.lineHeight) - scrollTop;
+        
+        this.activeLine.style.transform = `translateY(${top}px)`;
+        
+        // Also highlight the line number in the gutter
+        // We need to find the line number element in the gutter content
+        // But gutter content is re-rendered in updateVirtualWindow.
+        // So we can just set a property and let updateVirtualWindow handle it, 
+        // or manually update class if element exists.
+        
+        this.currentActiveLine = line;
+        
+        // Update gutter classes
+        const gutterLines = this.gutterContent.children;
+        for (let i = 0; i < gutterLines.length; i++) {
+            const el = gutterLines[i];
+            const l = parseInt(el.dataset.line);
+            if (l === line) el.classList.add('active');
+            else el.classList.remove('active');
+        }
     }
 
     updateVirtualWindow(liveContent = null) {
@@ -408,6 +484,14 @@ export class EditorView {
         
         // Highlight only the visible text
         this.code.innerHTML = this.highlight(visibleText);
+
+        // Render Gutter
+        let gutterHtml = '';
+        for (let i = renderStartLine; i < renderEndLine; i++) {
+            const isActive = i === this.currentActiveLine ? ' active' : '';
+            gutterHtml += `<div class="jv-line-number${isActive}" data-line="${i}">${i + 1}</div>`;
+        }
+        this.gutterContent.innerHTML = gutterHtml;
 
         // Inject error marker if visible (only if not dirty, to avoid misalignment)
         if (!isDirty && this.error && this.error.pos !== -1) {
@@ -453,6 +537,13 @@ export class EditorView {
         // so we need to shift the content up to match the scroll position.
         const topOffset = (renderStartLine * this.lineHeight) - scrollTop;
         this.code.style.transform = `translateY(${topOffset}px)`;
+        this.gutterContent.style.transform = `translateY(${topOffset}px)`;
+        
+        // Update active line position as well since scrollTop changed
+        if (this.currentActiveLine !== undefined) {
+             const activeTop = (this.currentActiveLine * this.lineHeight) - scrollTop;
+             this.activeLine.style.transform = `translateY(${activeTop}px)`;
+        }
     }
 
     highlight(json) {
