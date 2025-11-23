@@ -484,6 +484,11 @@ body.json-viewer-active {
   caret-color: var(--text-color);
   resize: none;
   outline: none;
+  /* Ensure font rendering matches exactly */
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
 }
 
 /* When editing (dirty state), show the raw text to prevent invisible typing lag */
@@ -497,6 +502,11 @@ body.json-viewer-active {
   color: var(--text-color);
   pointer-events: none;
   overflow: hidden; /* Virtualization viewport */
+  /* Ensure font rendering matches exactly */
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
 }
 
 .jv-editor-code {
@@ -506,6 +516,14 @@ body.json-viewer-active {
   left: 0;
   width: 100%;
   will-change: transform;
+  padding: 1rem; /* Match container padding */
+  box-sizing: border-box;
+}
+
+.jv-error-marker {
+  text-decoration: underline wavy #ef4444;
+  text-decoration-thickness: 2px;
+  background-color: rgba(239, 68, 68, 0.1);
 }
 
 .jv-token-string { color: var(--string-color); }

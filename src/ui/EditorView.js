@@ -97,12 +97,36 @@ export class EditorView {
         this.inputTimer = setTimeout(() => {
             this.content = this.textarea.value;
             this.scanLines(this.content);
+            this.validate(); // Check for errors
             this.updateVirtualWindow();
             
             // Restore highlighting
             this.textarea.classList.remove('dirty');
             this.code.style.display = 'block';
         }, 200);
+    }
+
+    validate() {
+        this.error = null;
+        try {
+            JSON.parse(this.content);
+        } catch (e) {
+            // Extract position from error message
+            // V8 format: "Unexpected token } in JSON at position 123"
+            const match = e.message.match(/at position (\d+)/);
+            if (match) {
+                this.error = {
+                    pos: parseInt(match[1], 10),
+                    message: e.message
+                };
+            } else {
+                // Fallback if position not found
+                this.error = {
+                    pos: -1,
+                    message: e.message
+                };
+            }
+        }
     }
 
     handleScroll() {
@@ -135,7 +159,55 @@ export class EditorView {
         const visibleText = this.content.substring(startIndex, endIndex !== undefined ? endIndex : this.content.length);
         
         // Highlight only the visible text
-        this.code.innerHTML = this.highlight(visibleText);
+        let highlighted = this.highlight(visibleText);
+
+        // Inject error marker if visible
+        if (this.error && this.error.pos >= startIndex && (endIndex === undefined || this.error.pos < endIndex)) {
+            // Calculate relative position in visible text
+            const relativePos = this.error.pos - startIndex;
+            
+            // We need to find where to insert the marker in the HTML string
+            // This is tricky because of HTML tags. 
+            // Simplified approach: Just highlight the whole chunk around the error or use a simpler overlay.
+            // Better approach: Find the text node at that position.
+            // Since we are generating HTML string, we can try to inject it.
+            
+            // Let's try a simpler visual indicator for now:
+            // If we can't easily inject into the highlighted HTML, we might just show a toast or line indicator.
+            // But user asked for wiggle lines.
+            
+            // Hacky but effective: Split visible text, highlight parts, wrap error char.
+            // But highlighting logic is regex based.
+            
+            // Alternative: Render error as a separate overlay? No, alignment issues.
+            
+            // Let's try to wrap the character at relativePos
+            // We need to be careful not to break HTML tags from syntax highlighting.
+            // Actually, `highlight` function returns HTML. 
+            // Maybe we should apply error marker AFTER highlighting?
+            // No, highlighting destroys original indices.
+            
+            // Let's apply error marker to the text BEFORE highlighting, but use a special token that highlight() ignores?
+            // Or just wrap the character in a unique sequence, highlight, then replace sequence with span?
+            
+            const char = visibleText[relativePos] || ' ';
+            const marker = `<span class="jv-error-marker" title="${this.error.message}">${char}</span>`;
+            
+            // We can't just replace char because highlight() expects valid JSON chars.
+            // If we replace it with HTML, highlight() will escape it.
+            
+            // Strategy: 
+            // 1. Highlight the text BEFORE the error.
+            // 2. Highlight the error char (wrapped in marker).
+            // 3. Highlight the text AFTER the error.
+            
+            const before = visibleText.substring(0, relativePos);
+            const after = visibleText.substring(relativePos + 1);
+            
+            highlighted = this.highlight(before) + marker + this.highlight(after);
+        }
+        
+        this.code.innerHTML = highlighted;
         
         // Position the code block
         const topOffset = renderStartLine * this.lineHeight;
