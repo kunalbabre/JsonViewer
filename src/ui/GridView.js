@@ -1,3 +1,7 @@
+// Performance tuning constants
+const GRID_BATCH_SIZE = 50; // Number of table rows to render per batch
+const COLUMN_SAMPLE_SIZE = 100; // Number of items to sample for column detection
+
 export class GridView {
     constructor(data, searchQuery = '') {
         this.data = data;
@@ -17,8 +21,8 @@ export class GridView {
 
         // Collect all unique keys for columns
         const keys = new Set();
-        // Sample first 100 items for column detection in large datasets
-        const sampleSize = Math.min(100, this.data.length);
+        // Sample first items for column detection in large datasets
+        const sampleSize = Math.min(COLUMN_SAMPLE_SIZE, this.data.length);
         for (let i = 0; i < sampleSize; i++) {
             const item = this.data[i];
             if (typeof item === 'object' && item !== null) {
@@ -55,11 +59,10 @@ export class GridView {
         table.appendChild(tbody);
         
         // For large arrays, render in batches
-        const BATCH_SIZE = 50;
         let rowIndex = 0;
 
         const renderBatch = () => {
-            const end = Math.min(rowIndex + BATCH_SIZE, this.data.length);
+            const end = Math.min(rowIndex + GRID_BATCH_SIZE, this.data.length);
             
             for (; rowIndex < end; rowIndex++) {
                 const item = this.data[rowIndex];
@@ -95,7 +98,7 @@ export class GridView {
 
             if (rowIndex < this.data.length) {
                 // Show loading indicator
-                if (rowIndex === BATCH_SIZE) {
+                if (rowIndex === GRID_BATCH_SIZE) {
                     const loadingRow = document.createElement('tr');
                     const loadingCell = document.createElement('td');
                     loadingCell.colSpan = columns.length;

@@ -13,6 +13,9 @@ function isJSON(text) {
     }
 }
 
+// Performance tuning constant
+const LARGE_FILE_THRESHOLD = 1024 * 1024; // 1 MB threshold for showing loading indicator
+
 (async function () {
     try {
         let Viewer;
@@ -53,7 +56,7 @@ function isJSON(text) {
 
             try {
                 // Show loading indicator for large files
-                const isLargeFile = content.length > 1024 * 1024; // > 1MB
+                const isLargeFile = content.length > LARGE_FILE_THRESHOLD;
                 if (isLargeFile) {
                     document.body.innerHTML = '';
                     document.body.classList.add('json-viewer-active');

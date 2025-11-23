@@ -1,6 +1,11 @@
 import { Icons } from './Icons.js';
 import { Toast } from './Toast.js';
 
+// Performance tuning constants
+const BATCH_SIZE = 100; // Number of nodes to render per animation frame
+const LARGE_OBJECT_THRESHOLD = 50; // Objects with more items auto-collapse
+const DEEP_NESTING_THRESHOLD = 1; // Nodes deeper than this auto-collapse
+
 export class TreeView {
     constructor(data, searchQuery = '', mode = 'json') {
         this.data = data;
@@ -29,11 +34,10 @@ export class TreeView {
             }
 
             // For large datasets, render in chunks to avoid blocking
-            const CHUNK_SIZE = 100;
             let index = 0;
 
             const renderChunk = () => {
-                const end = Math.min(index + CHUNK_SIZE, keys.length);
+                const end = Math.min(index + BATCH_SIZE, keys.length);
                 
                 for (; index < end; index++) {
                     const key = keys[index];
@@ -68,7 +72,8 @@ export class TreeView {
         if (isExpandable) {
             const toggler = document.createElement('span');
             // Start collapsed for deep nesting or large arrays/objects
-            const shouldCollapse = depth > 1 || (typeof value === 'object' && Object.keys(value).length > 50);
+            const shouldCollapse = depth > DEEP_NESTING_THRESHOLD || 
+                (typeof value === 'object' && Object.keys(value).length > LARGE_OBJECT_THRESHOLD);
             toggler.className = shouldCollapse ? 'jv-toggler' : 'jv-toggler expanded';
             toggler.textContent = '▶';
             toggler.onclick = (e) => {
@@ -154,12 +159,15 @@ export class TreeView {
         if (isExpandable) {
             const children = document.createElement('div');
             children.className = 'jv-children';
-            // If initially expanded, render children immediately
-            if (!node.querySelector('.jv-toggler').classList.contains('expanded')) {
-                children.classList.add('hidden');
-            } else {
+            const toggler = node.querySelector('.jv-toggler');
+            const isInitiallyExpanded = toggler && toggler.classList.contains('expanded');
+            
+            if (isInitiallyExpanded) {
                 // Render children for initially expanded nodes
                 this.renderBatch(value, children, currentPath, depth + 1);
+            } else {
+                // Hide children for collapsed nodes
+                children.classList.add('hidden');
             }
             node.appendChild(children);
         }

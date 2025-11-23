@@ -13,6 +13,29 @@ The original JSON Viewer extension had performance issues with large JSON files 
 
 ### Solutions Implemented
 
+#### Configuration Constants
+
+All performance-sensitive values are defined as named constants for easy tuning:
+
+```javascript
+// TreeView.js
+const BATCH_SIZE = 100;                // Nodes per animation frame
+const LARGE_OBJECT_THRESHOLD = 50;     // Auto-collapse threshold
+const DEEP_NESTING_THRESHOLD = 1;      // Auto-collapse depth
+
+// GridView.js
+const GRID_BATCH_SIZE = 50;            // Table rows per batch
+const COLUMN_SAMPLE_SIZE = 100;        // Items for column detection
+
+// SchemaView.js
+const SCHEMA_SAMPLE_SIZE = 100;        // Array items for schema
+
+// content.js
+const LARGE_FILE_THRESHOLD = 1048576;  // 1 MB for loading indicator
+```
+
+These can be adjusted based on specific use cases or hardware constraints.
+
 #### 1. Lazy TreeView Rendering
 **File:** `src/ui/TreeView.js`
 
