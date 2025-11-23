@@ -168,7 +168,8 @@ function addRequestToList(request) {
                 renderViewer(json, content);
             } catch (e) {
                 console.error('Failed to parse JSON', e);
-                root.innerHTML = `<div style="padding:20px;color:red;">Failed to parse JSON: ${e.message}<br><br><pre style="font-size:11px;color:var(--text-color);">${content.substring(0, 500)}...</pre></div>`;
+                // Show viewer with invalid flag
+                renderViewer(null, content, { isInvalid: true });
             }
         });
     };
@@ -176,10 +177,10 @@ function addRequestToList(request) {
     list.appendChild(item);
 }
 
-function renderViewer(json, rawData) {
+function renderViewer(json, rawData, options = {}) {
     const root = document.getElementById('viewer-root');
     root.innerHTML = ''; // Clear placeholder
     
-    // Re-apply theme class to root if needed (Viewer might expect it on body, which we have)
-    currentViewer = new Viewer(root, json, rawData, { expandAll: false });
+    currentViewer = new Viewer(root, json, rawData, options);
 }
+
