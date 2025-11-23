@@ -9,9 +9,21 @@ export class Toolbar {
         const topBar = document.createElement('div');
         topBar.className = 'jv-top-bar';
 
-        // Left: View Switchers
-        const nav = document.createElement('div');
-        nav.className = 'jv-nav-group';
+        // Left: Logo & View Switchers
+        const leftGroup = document.createElement('div');
+        leftGroup.className = 'jv-nav-group';
+
+        const logo = document.createElement('div');
+        logo.className = 'jv-logo';
+        logo.textContent = 'JSON Viewer';
+        leftGroup.appendChild(logo);
+
+        // Separator
+        const sep = document.createElement('div');
+        sep.className = 'jv-separator';
+        sep.style.height = '1.5rem';
+        sep.style.margin = '0 1rem';
+        leftGroup.appendChild(sep);
         
         const views = ['tree', 'editor', 'schema', 'yaml', 'raw'];
         this.viewButtons = {};
@@ -23,24 +35,19 @@ export class Toolbar {
             btn.textContent = label;
             btn.onclick = () => onViewChange(view);
             this.viewButtons[view] = btn;
-            nav.appendChild(btn);
+            leftGroup.appendChild(btn);
         });
-        topBar.appendChild(nav);
+        topBar.appendChild(leftGroup);
 
-        // Right: Title & Theme
-        const metaGroup = document.createElement('div');
-        metaGroup.className = 'jv-meta-group';
-
-        const logo = document.createElement('div');
-        logo.className = 'jv-logo';
-        logo.textContent = 'JSON Viewer';
-        metaGroup.appendChild(logo);
+        // Right: Theme
+        const rightGroup = document.createElement('div');
+        rightGroup.className = 'jv-meta-group';
 
         const themeBtn = this.createButton(Icons.theme, 'Toggle Theme', onThemeToggle);
         themeBtn.classList.add('jv-icon-only');
-        metaGroup.appendChild(themeBtn);
+        rightGroup.appendChild(themeBtn);
 
-        topBar.appendChild(metaGroup);
+        topBar.appendChild(rightGroup);
         this.element.appendChild(topBar);
 
         // --- Second Bar: Actions & Search ---

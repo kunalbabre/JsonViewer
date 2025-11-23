@@ -84,8 +84,8 @@ body.json-viewer-active {
 
 .jv-nav-group {
   display: flex;
+  align-items: center;
   height: 100%;
-  gap: 1rem;
 }
 
 .jv-nav-btn {
@@ -96,7 +96,7 @@ body.json-viewer-active {
   font-weight: 500;
   font-size: 0.9rem;
   cursor: pointer;
-  padding: 0 0.5rem;
+  padding: 0 0.75rem;
   height: 100%;
   transition: all 0.2s;
 }
