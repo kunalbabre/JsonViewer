@@ -76,11 +76,13 @@ function showModal(json, rawData) {
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
+    // Handle Escape
+    let escHandler;
     const closeModal = () => {
         const m = document.getElementById('jv-modal-root');
         if (m) m.remove();
         document.body.style.overflow = originalOverflow;
-        document.removeEventListener('keydown', escHandler);
+        if (escHandler) document.removeEventListener('keydown', escHandler);
         currentModalCleanup = null;
     };
     
@@ -130,7 +132,7 @@ function showModal(json, rawData) {
     }
     
     // Handle Escape
-    const escHandler = (e) => {
+    escHandler = (e) => {
         if (e.key === 'Escape') {
             closeModal();
         }

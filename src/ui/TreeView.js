@@ -164,7 +164,9 @@ export class TreeView {
 
             const renderChunk = () => {
                 // Check cancellation again inside the loop
-                if (renderId !== null && renderId !== this.renderId) return;
+                // Ensure renderId is defined in this scope (it should be from arguments)
+                const currentRenderId = typeof renderId !== 'undefined' ? renderId : null;
+                if (currentRenderId !== null && currentRenderId !== this.renderId) return;
 
                 const end = Math.min(index + BATCH_SIZE, keys.length);
                 
@@ -172,7 +174,7 @@ export class TreeView {
                     const key = keys[index];
                     const value = data[key];
                     const currentPath = path ? (isArray ? `${path}[${key}]` : `${path}.${key}`) : key;
-                    const node = this.createNode(key, value, currentPath, isArray, depth);
+                    const node = this.createNode(key, value, currentPath, isArray, depth, currentRenderId);
                     container.appendChild(node);
                 }
 
@@ -191,7 +193,7 @@ export class TreeView {
         }
     }
 
-    createNode(key, value, currentPath, isArray, depth) {
+    createNode(key, value, currentPath, isArray, depth, renderId = null) {
         const node = document.createElement('div');
         node.className = 'jv-node';
         node.dataset.key = key; // For programmatic access

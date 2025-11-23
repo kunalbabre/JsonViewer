@@ -5,6 +5,7 @@ let currentViewer = null;
 // Initialize
 setupTheme();
 setupClearButton();
+setupManualButton();
 setupSearch();
 
 // Listen for network requests
@@ -65,6 +66,29 @@ function setupClearButton() {
     const btn = document.getElementById('clear-btn');
     if (btn) {
         btn.onclick = clearList;
+    }
+}
+
+function setupManualButton() {
+    const btn = document.getElementById('manual-btn');
+    if (btn) {
+        btn.onclick = () => {
+            // Deselect list items
+            document.querySelectorAll('.jv-request-item').forEach(i => i.classList.remove('active'));
+            
+            const root = document.getElementById('viewer-root');
+            root.innerHTML = '';
+            
+            // Open viewer in "invalid" mode (Editor view) with empty content
+            // This allows the user to paste anything
+            currentViewer = new Viewer(root, null, "", { isInvalid: true });
+            
+            // Try to focus the textarea if possible
+            setTimeout(() => {
+                const textarea = root.querySelector('textarea');
+                if (textarea) textarea.focus();
+            }, 100);
+        };
     }
 }
 
