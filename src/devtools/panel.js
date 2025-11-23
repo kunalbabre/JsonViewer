@@ -135,7 +135,8 @@ function addRequestToList(request) {
             }
 
             try {
-                const json = JSON.parse(content);
+                // Trim content to handle potential BOM or trailing whitespace issues
+                const json = JSON.parse(content.trim());
                 renderViewer(json, content);
             } catch (e) {
                 console.error('Failed to parse JSON', e);
