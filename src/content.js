@@ -19,8 +19,9 @@ function isJSON(text) {
     }
 }
 
-// Performance tuning constant
-const LARGE_FILE_THRESHOLD = 1048576; // 1 MB threshold for showing loading indicator
+// Performance tuning constants - optimized for 50MB+ files
+const LARGE_FILE_THRESHOLD = 5242880; // 5 MB threshold for showing loading indicator (increased from 1MB)
+const VERY_LARGE_FILE_THRESHOLD = 10485760; // 10 MB threshold for using Web Worker (non-blocking parse)
 
 // Listen for toggle command from background script
 if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
@@ -338,19 +339,88 @@ function scanForJsonCodeBlocks() {
             try {
                 // Show loading indicator for large files
                 const isLargeFile = content.length > LARGE_FILE_THRESHOLD;
+                const isVeryLargeFile = content.length > VERY_LARGE_FILE_THRESHOLD;
+                
                 if (isLargeFile) {
                     document.body.innerHTML = '';
                     document.body.classList.add('json-viewer-active');
                     const loader = document.createElement('div');
-                    loader.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100vh;font-size:18px;color:#666;';
-                    loader.innerHTML = '<div>Loading large JSON file...</div>';
+                    loader.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-size:18px;color:#666;gap:10px;';
+                    const sizeText = (content.length / 1024 / 1024).toFixed(2);
+                    loader.innerHTML = `
+                        <div>Loading large JSON file (${sizeText} MB)...</div>
+                        <div style="font-size:14px;color:#999;">This may take a moment</div>
+                    `;
                     document.body.appendChild(loader);
                 }
 
+                // For very large files, use Web Worker if available
+                // Note: Worker code is inlined to avoid CSP issues in extension context
+                const parseJSON = (text) => {
+                    return new Promise((resolve, reject) => {
+                        if (isVeryLargeFile && typeof Worker !== 'undefined') {
+                            // Use Web Worker for large files to avoid blocking UI
+                            try {
+                                const workerCode = `
+                                    self.onmessage = function(e) {
+                                        try {
+                                            const parsed = JSON.parse(e.data);
+                                            self.postMessage({ success: true, data: parsed });
+                                        } catch (error) {
+                                            self.postMessage({ success: false, error: error.message });
+                                        }
+                                    };
+                                `;
+                                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                                const blobURL = URL.createObjectURL(blob);
+                                const worker = new Worker(blobURL);
+                                
+                                worker.onmessage = (e) => {
+                                    worker.terminate();
+                                    URL.revokeObjectURL(blobURL); // Clean up blob URL
+                                    if (e.data.success) {
+                                        resolve(e.data.data);
+                                    } else {
+                                        reject(new Error(e.data.error));
+                                    }
+                                };
+                                
+                                worker.onerror = (error) => {
+                                    console.warn('JSON Viewer: Worker failed, falling back to main thread', error.message);
+                                    worker.terminate();
+                                    URL.revokeObjectURL(blobURL); // Clean up blob URL
+                                    // Fallback to main thread
+                                    try {
+                                        resolve(JSON.parse(text));
+                                    } catch (e) {
+                                        reject(e);
+                                    }
+                                };
+                                
+                                worker.postMessage(text);
+                            } catch (e) {
+                                // Fallback to main thread if Worker creation fails
+                                try {
+                                    resolve(JSON.parse(text));
+                                } catch (parseError) {
+                                    reject(parseError);
+                                }
+                            }
+                        } else {
+                            // Use main thread for smaller files or if Worker not available
+                            try {
+                                resolve(JSON.parse(text));
+                            } catch (e) {
+                                reject(e);
+                            }
+                        }
+                    });
+                };
+
                 // Use setTimeout to allow UI to update before parsing
-                setTimeout(() => {
+                setTimeout(async () => {
                     try {
-                        const json = JSON.parse(content);
+                        const json = await parseJSON(content);
 
                         // Prepare original content for toggling
                         const originalContainer = document.createElement('div');
