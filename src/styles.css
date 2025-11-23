@@ -155,7 +155,7 @@ body.json-viewer-active {
 }
 
 .jv-search {
-  padding: 0.35rem 0.6rem 0.35rem 2rem; /* Match button padding height */
+  padding: 0.35rem 5rem 0.35rem 2rem; /* Add right padding for arrows */
   border-radius: 0.35rem;
   border: 1px solid var(--border-color);
   background-color: var(--hover-bg); /* Slight contrast for input */
@@ -172,14 +172,40 @@ body.json-viewer-active {
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
-.jv-match-counter {
+.jv-search-nav {
   position: absolute;
   right: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+}
+
+.jv-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--null-color);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+
+.jv-search-btn:hover {
+  background-color: var(--border-color);
+  color: var(--text-color);
+}
+
+.jv-match-counter {
+  position: absolute;
+  right: 3.5rem; /* Move left to make room for arrows */
   font-size: 0.75rem;
   color: var(--null-color);
-  background: var(--hover-bg);
+  background: transparent;
   padding: 0.1rem 0.4rem;
-  border-radius: 0.25rem;
   pointer-events: none;
 }
 

@@ -68,6 +68,27 @@ export class Toolbar {
         });
         searchContainer.appendChild(searchInput);
 
+        // Search Navigation Buttons
+        this.navContainer = document.createElement('div');
+        this.navContainer.className = 'jv-search-nav';
+        this.navContainer.style.display = 'none'; // Hidden by default
+        
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'jv-search-btn';
+        prevBtn.innerHTML = Icons.arrowUp;
+        prevBtn.title = 'Previous Match (Shift+Enter)';
+        prevBtn.onclick = () => onSearchNext && onSearchNext(true);
+        
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'jv-search-btn';
+        nextBtn.innerHTML = Icons.arrowDown;
+        nextBtn.title = 'Next Match (Enter)';
+        nextBtn.onclick = () => onSearchNext && onSearchNext(false);
+        
+        this.navContainer.appendChild(prevBtn);
+        this.navContainer.appendChild(nextBtn);
+        searchContainer.appendChild(this.navContainer);
+
         this.matchCounter = document.createElement('span');
         this.matchCounter.className = 'jv-match-counter';
         this.matchCounter.style.display = 'none';
@@ -139,11 +160,17 @@ export class Toolbar {
         if (total > 0) {
             this.matchCounter.textContent = `${current}/${total}`;
             this.matchCounter.style.display = 'block';
+            // Show navigation arrows only if there are multiple results
+            if (this.navContainer) {
+                this.navContainer.style.display = total > 1 ? 'flex' : 'none';
+            }
         } else if (current === 0 && total === 0) {
             this.matchCounter.style.display = 'none';
+            if (this.navContainer) this.navContainer.style.display = 'none';
         } else {
             this.matchCounter.textContent = 'No matches';
             this.matchCounter.style.display = 'block';
+            if (this.navContainer) this.navContainer.style.display = 'none';
         }
     }
 }
