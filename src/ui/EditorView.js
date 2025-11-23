@@ -11,6 +11,7 @@ export class EditorView {
         
         this.lineOffsets = null; // Will be Uint32Array
         this.lineHeight = 21; // Matches CSS
+        this.version = 0; // Track content version
         this.render();
     }
 
@@ -71,17 +72,20 @@ export class EditorView {
         // We use fixed line height from CSS now, so measurement is less critical but good for verification
         // this.measureLineHeight(); 
         this.lineHeight = 21; // Hardcoded to match CSS for stability
-        this.scanLines(this.content);
+        
         this.initWorker();
-        this.validate();
-        this.updateVirtualWindow();
+        
+        // Initial scan
+        if (this.worker) {
+            this.worker.postMessage({ text: this.content, version: this.version });
+        }
     }
 
     initWorker() {
         const workerCode = `
             self.onmessage = function(e) {
-                const text = e.data;
-                const result = { error: null, offsets: null, count: 0 };
+                const { text, version } = e.data;
+                const result = { error: null, offsets: null, count: 0, version };
                 
                 // 1. Scan Lines
                 try {
@@ -133,7 +137,10 @@ export class EditorView {
         const blob = new Blob([workerCode], { type: 'application/javascript' });
         this.worker = new Worker(URL.createObjectURL(blob));
         this.worker.onmessage = (e) => {
-            const { error, offsets, count } = e.data;
+            const { error, offsets, count, version } = e.data;
+            
+            // Ignore outdated results
+            if (version !== this.version) return;
             
             // Update state
             this.error = error;
@@ -156,12 +163,25 @@ export class EditorView {
 
         // Debounce
         if (this.inputTimer) clearTimeout(this.inputTimer);
+        
+        // Increase debounce to 300ms to allow longer typing bursts without freeze
         this.inputTimer = setTimeout(() => {
-            this.content = this.textarea.value;
-            if (this.worker) {
-                this.worker.postMessage(this.content);
+            // Use requestIdleCallback to avoid blocking main thread if busy
+            const update = () => {
+                // This is the heavy operation (reading 100MB string)
+                this.content = this.textarea.value;
+                this.version++; // Increment version
+                if (this.worker) {
+                    this.worker.postMessage({ text: this.content, version: this.version });
+                }
+            };
+            
+            if (window.requestIdleCallback) {
+                requestIdleCallback(update, { timeout: 1000 });
+            } else {
+                setTimeout(update, 10);
             }
-        }, 150);
+        }, 300);
     }
 
     validate() {
@@ -198,55 +218,46 @@ export class EditorView {
         const visibleText = this.content.substring(startIndex, endIndex !== undefined ? endIndex : this.content.length);
         
         // Highlight only the visible text
-        let highlighted = this.highlight(visibleText);
+        this.code.innerHTML = this.highlight(visibleText);
 
         // Inject error marker if visible
-        if (this.error && this.error.pos >= startIndex && (endIndex === undefined || this.error.pos < endIndex)) {
-            // Calculate relative position in visible text
-            const relativePos = this.error.pos - startIndex;
+        if (this.error && this.error.pos !== -1) {
+            const startOffset = this.lineOffsets[renderStartLine];
+            // endOffset might be undefined if we are at the end
+            const endOffset = (renderEndLine < this.lineOffsets.length) ? this.lineOffsets[renderEndLine] : this.content.length;
             
-            // We need to find where to insert the marker in the HTML string
-            // This is tricky because of HTML tags. 
-            // Simplified approach: Just highlight the whole chunk around the error or use a simpler overlay.
-            // Better approach: Find the text node at that position.
-            // Since we are generating HTML string, we can try to inject it.
-            
-            // Let's try a simpler visual indicator for now:
-            // If we can't easily inject into the highlighted HTML, we might just show a toast or line indicator.
-            // But user asked for wiggle lines.
-            
-            // Hacky but effective: Split visible text, highlight parts, wrap error char.
-            // But highlighting logic is regex based.
-            
-            // Alternative: Render error as a separate overlay? No, alignment issues.
-            
-            // Let's try to wrap the character at relativePos
-            // We need to be careful not to break HTML tags from syntax highlighting.
-            // Actually, `highlight` function returns HTML. 
-            // Maybe we should apply error marker AFTER highlighting?
-            // No, highlighting destroys original indices.
-            
-            // Let's apply error marker to the text BEFORE highlighting, but use a special token that highlight() ignores?
-            // Or just wrap the character in a unique sequence, highlight, then replace sequence with span?
-            
-            const char = visibleText[relativePos] || ' ';
-            const marker = `<span class="jv-error-marker" title="${this.error.message}">${char}</span>`;
-            
-            // We can't just replace char because highlight() expects valid JSON chars.
-            // If we replace it with HTML, highlight() will escape it.
-            
-            // Strategy: 
-            // 1. Highlight the text BEFORE the error.
-            // 2. Highlight the error char (wrapped in marker).
-            // 3. Highlight the text AFTER the error.
-            
-            const before = visibleText.substring(0, relativePos);
-            const after = visibleText.substring(relativePos + 1);
-            
-            highlighted = this.highlight(before) + marker + this.highlight(after);
+            if (this.error.pos >= startOffset && this.error.pos < endOffset) {
+                // Find exact line within the visible range
+                let errorLine = -1;
+                for (let i = renderStartLine; i < renderEndLine; i++) {
+                    const lineStart = this.lineOffsets[i];
+                    const lineEnd = (i + 1 < this.lineOffsets.length) ? this.lineOffsets[i+1] : this.content.length;
+                    
+                    if (this.error.pos >= lineStart && this.error.pos < lineEnd) {
+                        errorLine = i;
+                        break;
+                    }
+                }
+                
+                if (errorLine !== -1) {
+                    const lineStart = this.lineOffsets[errorLine];
+                    const col = this.error.pos - lineStart;
+                    
+                    const marker = document.createElement('div');
+                    marker.className = 'jv-error-wiggle';
+                    // Position relative to the code block (which is shifted by topOffset)
+                    // topOffset = (renderStartLine * lineHeight) - scrollTop
+                    // We want the marker to be at (errorLine * lineHeight) - scrollTop
+                    // Relative to code block: (errorLine - renderStartLine) * lineHeight
+                    
+                    marker.style.top = `${(errorLine - renderStartLine) * this.lineHeight}px`;
+                    marker.style.left = `calc(1rem + ${col}ch)`; // 1rem padding + char offset
+                    marker.title = this.error.message;
+                    
+                    this.code.appendChild(marker);
+                }
+            }
         }
-        
-        this.code.innerHTML = highlighted;
         
         // Position the code block relative to the viewport
         // We subtract scrollTop because the 'pre' container is fixed to the viewport,

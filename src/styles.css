@@ -490,6 +490,11 @@ body.json-viewer-active {
   caret-color: var(--text-color);
   resize: none;
   outline: none;
+  /* Performance optimizations */
+  text-rendering: optimizeSpeed;
+  font-variant-ligatures: none;
+  will-change: scroll-position;
+  overflow-anchor: none;
 }
 
 /* When editing (dirty state), show the raw text to prevent invisible typing lag */
@@ -520,6 +525,17 @@ body.json-viewer-active {
   text-decoration: underline wavy #ef4444;
   text-decoration-thickness: 2px;
   background-color: rgba(239, 68, 68, 0.1);
+}
+
+.jv-error-wiggle {
+  position: absolute;
+  width: 1ch;
+  height: 21px; /* Match line-height */
+  border-bottom: 2px solid #ef4444;
+  background-color: rgba(239, 68, 68, 0.2);
+  pointer-events: auto;
+  cursor: help;
+  z-index: 10;
 }
 
 .jv-token-string { color: var(--string-color); }
