@@ -132,9 +132,9 @@ body.json-viewer-active {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 1rem;
+  padding: 0.35rem 1rem;
   gap: 1rem;
-  background-color: rgba(0,0,0,0.02);
+  background-color: var(--bg-color); /* Match background */
 }
 
 .jv-search-container {
@@ -142,12 +142,12 @@ body.json-viewer-active {
   display: flex;
   align-items: center;
   flex: 1;
-  max-width: 400px;
+  max-width: 300px; /* Slightly smaller */
 }
 
 .jv-search-icon {
   position: absolute;
-  left: 0.75rem;
+  left: 0.6rem;
   color: var(--null-color);
   pointer-events: none;
   display: flex;
@@ -155,10 +155,10 @@ body.json-viewer-active {
 }
 
 .jv-search {
-  padding: 0.4rem 0.75rem 0.4rem 2.25rem;
-  border-radius: 0.4rem;
+  padding: 0.35rem 0.6rem 0.35rem 2rem; /* Match button padding height */
+  border-radius: 0.35rem;
   border: 1px solid var(--border-color);
-  background-color: var(--bg-color);
+  background-color: var(--hover-bg); /* Slight contrast for input */
   color: var(--text-color);
   font-size: 0.85rem;
   width: 100%;
@@ -168,6 +168,7 @@ body.json-viewer-active {
 .jv-search:focus {
   outline: none;
   border-color: var(--key-color);
+  background-color: var(--bg-color);
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
