@@ -1,7 +1,7 @@
 import { Icons } from './Icons.js';
 
 export class Toolbar {
-    constructor({ onSearch, onSearchNext, onViewChange, onThemeToggle, onCopy, onExpandAll, onCollapseAll, onSave, onFormat, onApply, currentView }) {
+    constructor({ onSearch, onSearchNext, onViewChange, onThemeToggle, onCopy, onExpandAll, onCollapseAll, onSave, onFormat, onApply, currentView, searchQuery }) {
         this.element = document.createElement('div');
         this.element.className = 'jv-toolbar-container';
 
@@ -59,6 +59,7 @@ export class Toolbar {
         const searchInput = document.createElement('input');
         searchInput.className = 'jv-search';
         searchInput.placeholder = 'Find in document...';
+        searchInput.value = searchQuery || '';
         searchInput.addEventListener('input', (e) => onSearch(e.target.value));
         searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {

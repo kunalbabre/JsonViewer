@@ -51,7 +51,8 @@ export class Viewer {
             onSave: () => this.handleSave(),
             onFormat: this.currentView === 'editor' ? () => this.editorView?.format() : null,
             onApply: this.currentView === 'editor' ? () => this.editorView?.applyChanges() : null,
-            currentView: this.currentView
+            currentView: this.currentView,
+            searchQuery: this.searchQuery
         });
         this.root.appendChild(this.toolbar.element);
 
