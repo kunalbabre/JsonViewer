@@ -185,3 +185,26 @@ function renderViewer(json, rawData, options = {}) {
     currentViewer = new Viewer(root, json, rawData, options);
 }
 
+// Listen for context menu snippet
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'viewSnippetFromContextMenu') {
+        // Check if this panel is inspecting the tab where the selection happened
+        if (message.tabId === chrome.devtools.inspectedWindow.tabId) {
+            
+            // Deselect any active request
+            document.querySelectorAll('.jv-request-item').forEach(i => i.classList.remove('active'));
+
+            // Render the content
+            try {
+                const json = JSON.parse(message.content);
+                renderViewer(json, message.content);
+            } catch (e) {
+                renderViewer(null, message.content, { isInvalid: true });
+            }
+            
+            // Notify background that we handled it
+            sendResponse({ received: true });
+        }
+    }
+});
+
