@@ -13,22 +13,21 @@ chrome.devtools.network.onRequestFinished.addListener(request => {
 
     const mimeType = (request.response.content.mimeType || '').toLowerCase();
     
-    // Initial filter by MIME type
-    // We strictly filter for JSON-related MIME types to avoid performance impact of fetching content for every request
-    const isJsonMime = mimeType.includes('json') || 
-                   mimeType.includes('javascript') || 
-                   mimeType.endsWith('+json');
+    // Filter out known binary/media types to avoid performance issues
+    // We allow text/*, application/* (except specific binaries), etc.
+    const isMedia = mimeType.startsWith('image/') || 
+                    mimeType.startsWith('audio/') || 
+                    mimeType.startsWith('video/') || 
+                    mimeType.startsWith('font/');
 
-    if (isJsonMime) {
-        // Verify content is actually valid JSON before adding to list
+    if (!isMedia) {
+        // Fetch content to verify it's not empty
         request.getContent((content, encoding) => {
             if (chrome.runtime.lastError || !content) return;
 
-            // Optimization: Check first/last char before parsing
-            const trimmed = content.trim();
-            if (trimmed.length < 2) return;
+            // Skip empty responses
+            if (content.trim().length === 0) return;
             
-            // Add to list even if invalid JSON, as long as it's a JSON mime type
             addRequestToList(request);
         });
     }

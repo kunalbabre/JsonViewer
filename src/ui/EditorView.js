@@ -143,8 +143,14 @@ export class EditorView {
                 this.textarea.value = this.content;
                 this.loader.style.display = 'none';
                 this.isLoading = false;
-                // Trigger analysis (highlighting/validation)
-                this.worker.postMessage({ text: this.content, version: this.version });
+                
+                // Raw mode: Show textarea content directly, hide syntax highlighting and gutter
+                this.textarea.style.color = 'var(--text-color)';
+                this.pre.style.display = 'none';
+                this.gutter.style.display = 'none';
+                // Adjust layout since gutter is gone
+                this.scroller.style.paddingLeft = '0';
+                
             } else {
                 this.worker.postMessage({ 
                     data: this.data, 
@@ -377,6 +383,11 @@ export class EditorView {
     }
 
     handleInput() {
+        if (this.options.isRaw) {
+            this.content = this.textarea.value;
+            return;
+        }
+
         // Update active line first so virtual window can render gutter correctly
         this.updateActiveLine();
         
