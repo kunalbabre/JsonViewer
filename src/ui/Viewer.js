@@ -348,7 +348,7 @@ export class Viewer {
         if (this.currentView === 'raw' && match.start !== undefined) {
             const textarea = this.contentContainer.querySelector('textarea');
             if (textarea) {
-                textarea.focus();
+                // Note: We don't focus() here to avoid stealing focus from the search input
                 textarea.setSelectionRange(match.start, match.end);
                 
                 // Calculate scroll position to center the match
