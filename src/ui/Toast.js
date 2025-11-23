@@ -14,7 +14,13 @@ export class Toast {
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => {
-                document.body.removeChild(toast);
+                try {
+                    if (toast.parentNode) {
+                        document.body.removeChild(toast);
+                    }
+                } catch (e) {
+                    console.warn('Toast removal failed:', e);
+                }
             }, 300);
         }, duration);
     }

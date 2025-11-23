@@ -4,6 +4,7 @@ import { TreeView } from './TreeView.js';
 
 // Performance tuning constants
 const SCHEMA_SAMPLE_SIZE = 100; // Number of array items to sample for schema generation
+const MAX_SCHEMA_DEPTH = 20; // Maximum depth to prevent infinite recursion
 
 export class SchemaView {
     constructor(data, searchQuery = '') {
@@ -11,15 +12,17 @@ export class SchemaView {
         this.searchQuery = searchQuery;
         this.element = document.createElement('div');
         this.element.className = 'jv-schema-container';
+        this.seenObjects = new WeakSet(); // Track circular references
         this.render();
     }
 
     render() {
-        const schema = this.generateSchema(this.data);
-        const schemaString = JSON.stringify(schema, null, 2);
+        try {
+            const schema = this.generateSchema(this.data);
+            const schemaString = JSON.stringify(schema, null, 2);
 
-        // Create Tree View first so we can reference it
-        const tree = new TreeView(schema, this.searchQuery);
+            // Create Tree View first so we can reference it
+            const tree = new TreeView(schema, this.searchQuery);
 
         // Toolbar for Schema View
         const toolbar = document.createElement('div');
@@ -48,6 +51,8 @@ export class SchemaView {
         copyBtn.onclick = () => {
             navigator.clipboard.writeText(schemaString).then(() => {
                 Toast.show('Schema copied to clipboard');
+            }).catch((e) => {
+                Toast.show('Failed to copy: ' + e.message);
             });
         };
         toolbar.appendChild(copyBtn);
@@ -63,15 +68,37 @@ export class SchemaView {
         treeContainer.appendChild(tree.element);
 
         this.element.appendChild(treeContainer);
+        } catch (e) {
+            console.error('Failed to generate schema:', e);
+            this.element.innerHTML = '';
+            const errorMsg = document.createElement('div');
+            errorMsg.style.padding = '1rem';
+            errorMsg.style.color = 'var(--null-color)';
+            errorMsg.textContent = 'Failed to generate schema: ' + e.message;
+            this.element.appendChild(errorMsg);
+        }
     }
 
-    generateSchema(data) {
+    generateSchema(data, depth = 0) {
+        // Prevent infinite recursion
+        if (depth > MAX_SCHEMA_DEPTH) {
+            return { type: 'unknown', note: 'Max depth exceeded' };
+        }
+
+        // Detect circular references
+        if (typeof data === 'object' && data !== null) {
+            if (this.seenObjects.has(data)) {
+                return { type: 'circular', note: 'Circular reference detected' };
+            }
+            this.seenObjects.add(data);
+        }
+
         const type = this.getType(data);
 
         if (type === 'object') {
             const schema = { type: 'object', properties: {} };
             Object.keys(data).forEach(key => {
-                schema.properties[key] = this.generateSchema(data[key]);
+                schema.properties[key] = this.generateSchema(data[key], depth + 1);
             });
             return schema;
         }
@@ -83,9 +110,14 @@ export class SchemaView {
                 const sampleSize = Math.min(SCHEMA_SAMPLE_SIZE, data.length);
                 const itemSchemas = [];
                 for (let i = 0; i < sampleSize; i++) {
-                    itemSchemas.push(this.generateSchema(data[i]));
+                    itemSchemas.push(this.generateSchema(data[i], depth + 1));
                 }
-                schema.items = itemSchemas.reduce((acc, curr) => this.mergeSchemas(acc, curr));
+                // Safe reduce with initial value
+                if (itemSchemas.length > 0) {
+                    schema.items = itemSchemas.reduce((acc, curr) => this.mergeSchemas(acc, curr), {});
+                } else {
+                    schema.items = {};
+                }
                 
                 // Add note if array was sampled
                 if (data.length > sampleSize) {

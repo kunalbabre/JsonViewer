@@ -33,6 +33,13 @@ export class GridView {
         }
         const columns = Array.from(keys);
 
+        if (columns.length === 0) {
+            this.element.textContent = 'No columns detected in the data.';
+            this.element.style.padding = '1rem';
+            this.element.style.color = 'var(--null-color)';
+            return;
+        }
+
         const table = document.createElement('table');
         table.className = 'jv-grid';
 
@@ -78,7 +85,11 @@ export class GridView {
                     }
 
                     if (typeof val === 'object' && val !== null) {
-                        td.textContent = JSON.stringify(val).substring(0, 50) + '...';
+                        try {
+                            td.textContent = JSON.stringify(val).substring(0, 50) + '...';
+                        } catch (e) {
+                            td.textContent = '[Complex Object]';
+                        }
                         td.style.color = 'var(--null-color)';
                     } else {
                         td.textContent = val !== undefined ? val : '';

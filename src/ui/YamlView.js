@@ -13,10 +13,11 @@ export class YamlView {
     }
 
     render() {
-        const yamlString = jsonToYaml(this.data);
+        try {
+            const yamlString = jsonToYaml(this.data);
 
-        // Create Tree View first so we can reference it
-        const tree = new TreeView(this.data, this.searchQuery, 'yaml');
+            // Create Tree View first so we can reference it
+            const tree = new TreeView(this.data, this.searchQuery, 'yaml');
 
         // Toolbar
         const toolbar = document.createElement('div');
@@ -45,6 +46,8 @@ export class YamlView {
         copyBtn.onclick = () => {
             navigator.clipboard.writeText(yamlString).then(() => {
                 Toast.show('YAML copied to clipboard');
+            }).catch((e) => {
+                Toast.show('Failed to copy: ' + e.message);
             });
         };
         toolbar.appendChild(copyBtn);
@@ -60,5 +63,14 @@ export class YamlView {
         treeContainer.appendChild(tree.element);
 
         this.element.appendChild(treeContainer);
+        } catch (e) {
+            console.error('Failed to convert to YAML:', e);
+            this.element.innerHTML = '';
+            const errorMsg = document.createElement('div');
+            errorMsg.style.padding = '1rem';
+            errorMsg.style.color = 'var(--null-color)';
+            errorMsg.textContent = 'Failed to convert to YAML: ' + e.message;
+            this.element.appendChild(errorMsg);
+        }
     }
 }

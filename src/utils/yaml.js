@@ -1,8 +1,29 @@
+const MAX_YAML_DEPTH = 50; // Maximum depth to prevent stack overflow
+const seenObjects = new WeakSet(); // Track circular references
+
 export function jsonToYaml(data) {
-    return convert(data, 0);
+    seenObjects.clear = function() { return new WeakSet(); }; // Reset for each conversion
+    try {
+        return convert(data, 0);
+    } catch (e) {
+        return `# Error converting to YAML: ${e.message}`;
+    }
 }
 
 function convert(data, indentLevel) {
+    // Prevent stack overflow
+    if (indentLevel > MAX_YAML_DEPTH) {
+        return '# Max depth exceeded';
+    }
+
+    // Detect circular references
+    if (typeof data === 'object' && data !== null) {
+        if (seenObjects.has(data)) {
+            return '# Circular reference';
+        }
+        seenObjects.add(data);
+    }
+
     const indent = '  '.repeat(indentLevel);
 
     if (data === null) {

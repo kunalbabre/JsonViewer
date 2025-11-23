@@ -187,6 +187,12 @@ export class Viewer {
         this.searchMatches = [];
         const searchLower = query.toLowerCase();
 
+        // Safety check
+        if (!this.contentContainer) {
+            console.warn('Content container not found');
+            return;
+        }
+
         // Search in all text nodes
         const walker = document.createTreeWalker(
             this.contentContainer,
@@ -205,18 +211,22 @@ export class Viewer {
 
         // Highlight matches and store them
         nodesToHighlight.forEach(textNode => {
-            const parent = textNode.parentElement;
-            if (parent && !parent.classList.contains('jv-btn')) {
-                const text = textNode.textContent;
-                const lowerText = text.toLowerCase();
-                const index = lowerText.indexOf(searchLower);
+            try {
+                const parent = textNode.parentElement;
+                if (parent && !parent.classList.contains('jv-btn')) {
+                    const text = textNode.textContent;
+                    const lowerText = text.toLowerCase();
+                    const index = lowerText.indexOf(searchLower);
 
-                if (index !== -1) {
-                    parent.style.backgroundColor = '#fef08a';
-                    parent.style.color = '#000';
-                    parent.classList.add('jv-highlight');
-                    this.searchMatches.push(parent);
+                    if (index !== -1) {
+                        parent.style.backgroundColor = '#fef08a';
+                        parent.style.color = '#000';
+                        parent.classList.add('jv-highlight');
+                        this.searchMatches.push(parent);
+                    }
                 }
+            } catch (e) {
+                console.warn('Failed to highlight search match:', e);
             }
         });
 
@@ -348,6 +358,8 @@ export class Viewer {
     copyToClipboard() {
         navigator.clipboard.writeText(this.rawData).then(() => {
             Toast.show('Copied to clipboard');
+        }).catch((e) => {
+            Toast.show('Failed to copy: ' + e.message);
         });
     }
 
@@ -355,8 +367,12 @@ export class Viewer {
         document.addEventListener('keydown', (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
                 e.preventDefault();
-                const searchInput = this.root.querySelector('.jv-search');
-                if (searchInput) searchInput.focus();
+                try {
+                    const searchInput = this.root.querySelector('.jv-search');
+                    if (searchInput) searchInput.focus();
+                } catch (err) {
+                    console.warn('Failed to focus search input:', err);
+                }
             }
         });
     }

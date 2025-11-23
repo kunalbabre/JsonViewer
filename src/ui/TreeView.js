@@ -67,11 +67,11 @@ export class TreeView {
         header.className = 'jv-node-header';
 
         const isExpandable = typeof value === 'object' && value !== null && Object.keys(value).length > 0;
+        const valueKeys = typeof value === 'object' && value !== null ? Object.keys(value) : [];
 
         // Toggler for objects/arrays
         if (isExpandable) {
             const toggler = document.createElement('span');
-            const valueKeys = Object.keys(value);
             // Start collapsed for deep nesting or large arrays/objects
             const shouldCollapse = depth > DEEP_NESTING_THRESHOLD || valueKeys.length > LARGE_OBJECT_THRESHOLD;
             toggler.className = shouldCollapse ? 'jv-toggler' : 'jv-toggler expanded';
@@ -142,8 +142,12 @@ export class TreeView {
         actions.className = 'jv-actions';
 
         const copyValBtn = this.createActionButton(Icons.copy, 'Copy Value', () => {
-            const valToCopy = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
-            this.copyText(valToCopy);
+            try {
+                const valToCopy = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+                this.copyText(valToCopy);
+            } catch (e) {
+                Toast.show('Failed to copy: ' + e.message);
+            }
         });
         actions.appendChild(copyValBtn);
 
@@ -290,6 +294,8 @@ export class TreeView {
     copyText(text) {
         navigator.clipboard.writeText(text).then(() => {
             Toast.show('Copied!');
+        }).catch((e) => {
+            Toast.show('Failed to copy: ' + e.message);
         });
     }
 
@@ -298,8 +304,10 @@ export class TreeView {
         togglers.forEach(t => {
             t.classList.add('expanded');
             const node = t.closest('.jv-node');
-            const children = node.querySelector('.jv-children');
-            if (children) children.classList.remove('hidden');
+            if (node) {
+                const children = node.querySelector('.jv-children');
+                if (children) children.classList.remove('hidden');
+            }
         });
     }
 
@@ -308,8 +316,10 @@ export class TreeView {
         togglers.forEach(t => {
             t.classList.remove('expanded');
             const node = t.closest('.jv-node');
-            const children = node.querySelector('.jv-children');
-            if (children) children.classList.add('hidden');
+            if (node) {
+                const children = node.querySelector('.jv-children');
+                if (children) children.classList.add('hidden');
+            }
         });
     }
 }
