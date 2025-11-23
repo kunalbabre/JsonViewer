@@ -26,16 +26,37 @@ body {
 
 .jv-devtools-header {
     padding: 8px 10px;
-    font-weight: bold;
     border-bottom: 1px solid var(--border-color);
-    font-size: 12px;
-    text-transform: uppercase;
-    color: var(--null-color);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background-color: var(--hover-bg);
+}
+
+.jv-header-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 32px;
+    font-weight: bold;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--null-color);
+}
+
+.jv-request-search {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: 12px;
     box-sizing: border-box;
+}
+
+.jv-request-search:focus {
+    outline: none;
+    border-color: var(--key-color);
 }
 
 .jv-icon-btn {

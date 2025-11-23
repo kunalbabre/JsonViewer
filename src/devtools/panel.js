@@ -5,6 +5,7 @@ let currentViewer = null;
 // Initialize
 setupTheme();
 setupClearButton();
+setupSearch();
 
 // Listen for network requests
 chrome.devtools.network.onRequestFinished.addListener(request => {
@@ -45,6 +46,28 @@ chrome.devtools.network.onRequestFinished.addListener(request => {
 chrome.devtools.network.onNavigated.addListener(() => {
     clearList();
 });
+
+function setupSearch() {
+    const searchInput = document.getElementById('request-search');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        const items = document.querySelectorAll('.jv-request-item');
+        
+        items.forEach(item => {
+            const method = item.querySelector('.jv-request-method').textContent.toLowerCase();
+            const url = item.querySelector('.jv-request-url').title.toLowerCase();
+            const name = item.querySelector('.jv-request-url').textContent.toLowerCase();
+            
+            if (method.includes(query) || url.includes(query) || name.includes(query)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+}
 
 function setupClearButton() {
     const btn = document.getElementById('clear-btn');
@@ -112,6 +135,19 @@ function addRequestToList(request) {
         </div>
         <div class="jv-request-status">${request.response.status} ${request.response.statusText}</div>
     `;
+
+    // Apply current search filter
+    const searchInput = document.getElementById('request-search');
+    if (searchInput && searchInput.value) {
+        const query = searchInput.value.toLowerCase();
+        const method = request.request.method.toLowerCase();
+        const urlStr = request.request.url.toLowerCase();
+        const nameStr = name.toLowerCase();
+        
+        if (!method.includes(query) && !urlStr.includes(query) && !nameStr.includes(query)) {
+            item.style.display = 'none';
+        }
+    }
     
     item.onclick = () => {
         // Highlight
