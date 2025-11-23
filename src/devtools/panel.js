@@ -12,13 +12,31 @@ chrome.devtools.network.onRequestFinished.addListener(request => {
 
     const mimeType = (request.response.content.mimeType || '').toLowerCase();
     
-    // Robust JSON detection
-    const isJson = mimeType.includes('json') || 
+    // Initial filter by MIME type
+    const isJsonMime = mimeType.includes('json') || 
                    mimeType.includes('javascript') || 
                    mimeType.includes('application/vnd.api+json');
 
-    if (isJson) {
-        addRequestToList(request);
+    if (isJsonMime) {
+        // Verify content is actually valid JSON before adding to list
+        request.getContent((content, encoding) => {
+            if (chrome.runtime.lastError || !content) return;
+
+            // Optimization: Check first/last char before parsing
+            const trimmed = content.trim();
+            if (trimmed.length < 2) return;
+            
+            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
+                (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try {
+                    // Only add if it parses successfully
+                    JSON.parse(trimmed);
+                    addRequestToList(request);
+                } catch (e) {
+                    // Not valid JSON, ignore
+                }
+            }
+        });
     }
 });
 
