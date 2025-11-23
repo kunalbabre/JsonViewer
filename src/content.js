@@ -2,8 +2,14 @@
 function isJSON(text) {
     if (!text) return false;
     text = text.trim();
+    // Check basic structure
     if (!((text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']')))) {
         return false;
+    }
+    // For large files, skip the expensive parse check here. 
+    // We will catch errors during the actual parsing phase.
+    if (text.length > 50000) {
+        return true;
     }
     try {
         JSON.parse(text);
@@ -68,19 +74,27 @@ const LARGE_FILE_THRESHOLD = 1048576; // 1 MB threshold for showing loading indi
 
                 // Use setTimeout to allow UI to update before parsing
                 setTimeout(() => {
-                    const json = JSON.parse(content);
+                    try {
+                        const json = JSON.parse(content);
 
-                    // Clear existing content
-                    document.body.innerHTML = '';
-                    document.body.classList.add('json-viewer-active');
+                        // Clear existing content
+                        document.body.innerHTML = '';
+                        document.body.classList.add('json-viewer-active');
 
-                    // Create root element
-                    const root = document.createElement('div');
-                    root.id = 'json-viewer-root';
-                    document.body.appendChild(root);
+                        // Create root element
+                        const root = document.createElement('div');
+                        root.id = 'json-viewer-root';
+                        document.body.appendChild(root);
 
-                    // Initialize Viewer
-                    new Viewer(root, json, content);
+                        // Initialize Viewer
+                        new Viewer(root, json, content);
+                    } catch (e) {
+                        console.error('JSON Viewer: Failed to parse JSON', e);
+                        // If we showed a loader, we should probably show an error now
+                        if (isLargeFile) {
+                            document.body.innerHTML = `<div style="padding: 20px; color: red;">Failed to parse JSON: ${e.message}</div>`;
+                        }
+                    }
                 }, isLargeFile ? 100 : 0);
             } catch (e) {
                 console.error('JSON Viewer: Failed to parse JSON', e);

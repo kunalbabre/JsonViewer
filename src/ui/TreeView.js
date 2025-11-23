@@ -3,8 +3,9 @@ import { Toast } from './Toast.js';
 
 // Performance tuning constants
 const BATCH_SIZE = 100; // Number of nodes to render per animation frame
+const PAGE_SIZE = 500; // Number of nodes to render before showing "Show More"
 const LARGE_OBJECT_THRESHOLD = 50; // Objects with more items auto-collapse
-const DEEP_NESTING_THRESHOLD = 1; // Nodes deeper than this auto-collapse
+const DEEP_NESTING_THRESHOLD = 0; // Nodes deeper than this auto-collapse
 
 export class TreeView {
     constructor(data, searchQuery = '', mode = 'json') {
@@ -36,6 +37,25 @@ export class TreeView {
             // For large datasets, render in chunks to avoid blocking
             let index = 0;
 
+            const createShowMoreBtn = () => {
+                const remaining = keys.length - index;
+                const btn = document.createElement('div');
+                btn.className = 'jv-show-more';
+                btn.style.padding = '4px 0 4px 24px';
+                btn.style.cursor = 'pointer';
+                btn.style.color = 'var(--link-color)';
+                btn.style.fontStyle = 'italic';
+                btn.style.fontSize = '0.9em';
+                btn.textContent = `Show more (${remaining} items)...`;
+                
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    btn.remove();
+                    renderChunk();
+                };
+                container.appendChild(btn);
+            };
+
             const renderChunk = () => {
                 const end = Math.min(index + BATCH_SIZE, keys.length);
                 
@@ -48,8 +68,11 @@ export class TreeView {
                 }
 
                 if (index < keys.length) {
-                    // Use requestAnimationFrame for smooth rendering
-                    requestAnimationFrame(renderChunk);
+                    if (index % PAGE_SIZE === 0) {
+                        createShowMoreBtn();
+                    } else {
+                        requestAnimationFrame(renderChunk);
+                    }
                 }
             };
 
@@ -110,8 +133,7 @@ export class TreeView {
 
         // Highlight search match in key
         if (this.searchQuery && key.toLowerCase().includes(this.searchQuery)) {
-            keySpan.style.backgroundColor = '#fef08a';
-            keySpan.style.color = '#000';
+            keySpan.classList.add('jv-highlight');
         }
 
         header.appendChild(keySpan);

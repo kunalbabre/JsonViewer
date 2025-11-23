@@ -145,7 +145,15 @@ export class Viewer {
 
             const textarea = document.createElement('textarea');
             textarea.className = 'jv-raw';
-            textarea.value = this.rawData;
+            
+            // Truncate large raw data
+            const MAX_RAW_SIZE = 1000000; // 1MB
+            if (this.rawData.length > MAX_RAW_SIZE) {
+                textarea.value = this.rawData.substring(0, MAX_RAW_SIZE) + '\n\n... (Truncated for performance. Use "Save JSON" to download full content.)';
+            } else {
+                textarea.value = this.rawData;
+            }
+
             textarea.readOnly = true;
             textarea.style.flex = '1'; // Ensure it takes remaining space
 
@@ -163,6 +171,21 @@ export class Viewer {
             this.viewCache[this.currentView] = schema.element;
             
         } else if (this.currentView === 'yaml') {
+            // Disable YAML for large files
+            if (this.rawData.length > 1000000) { // 1MB limit
+                const container = document.createElement('div');
+                container.className = 'jv-schema-container';
+                container.style.display = 'flex';
+                container.style.alignItems = 'center';
+                container.style.justifyContent = 'center';
+                container.style.color = 'var(--null-color)';
+                container.textContent = 'YAML view is disabled for large files (>1MB) to prevent performance issues.';
+                
+                this.contentContainer.appendChild(container);
+                this.viewCache[this.currentView] = container;
+                return;
+            }
+
             const yaml = new YamlView(this.data, this.searchQuery);
             this.contentContainer.appendChild(yaml.element);
             
@@ -175,13 +198,19 @@ export class Viewer {
         this.currentView = view;
         this.toolbar.updateActiveView(view);
         this.renderContent();
+        
+        // Re-apply search highlights if needed
+        if (this.searchQuery) {
+            this.performSearch(this.searchQuery);
+        }
     }
 
     handleSearch(query) {
-        // Clear view cache when search changes to force re-render with new search
-        if (query !== this.searchQuery) {
-            this.viewCache = {};
+        // Update tree view search query so new nodes get highlighted
+        if (this.treeView) {
+            this.treeView.searchQuery = query.toLowerCase();
         }
+        
         // Instant search - no debouncing
         this.performSearch(query);
     }
@@ -205,9 +234,9 @@ export class Viewer {
 
         // Remove old highlights
         document.querySelectorAll('.jv-highlight, .jv-highlight-current').forEach(el => {
+            el.classList.remove('jv-highlight', 'jv-highlight-current');
             el.style.backgroundColor = '';
             el.style.color = '';
-            el.classList.remove('jv-highlight', 'jv-highlight-current');
         });
 
         // Find and highlight all matches
@@ -246,8 +275,6 @@ export class Viewer {
                     const index = lowerText.indexOf(searchLower);
 
                     if (index !== -1) {
-                        parent.style.backgroundColor = '#fef08a';
-                        parent.style.color = '#000';
                         parent.classList.add('jv-highlight');
                         this.searchMatches.push(parent);
                     }
@@ -276,16 +303,16 @@ export class Viewer {
 
         // Remove current highlight from all
         this.searchMatches.forEach(el => {
-            el.style.backgroundColor = '#fef08a';
-            el.style.color = '#000';
             el.classList.remove('jv-highlight-current');
+            el.style.backgroundColor = '';
+            el.style.color = '';
         });
 
         // Highlight current match differently
         const current = this.searchMatches[this.currentMatchIndex];
-        current.style.backgroundColor = '#fb923c'; // Orange for current
-        current.style.color = '#fff';
         current.classList.add('jv-highlight-current');
+        current.style.backgroundColor = ''; // Ensure inline style doesn't override class
+        current.style.color = '';
 
         // Expand any collapsed parent nodes to make match visible
         let parent = current.parentElement;

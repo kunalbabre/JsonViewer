@@ -298,6 +298,16 @@ body.json-viewer-active {
   color: var(--null-color);
 }
 
+.jv-highlight {
+  background-color: #fef08a !important;
+  color: #000 !important;
+}
+
+.jv-highlight-current {
+  background-color: #fb923c !important;
+  color: #fff !important;
+}
+
 .jv-val-link {
   color: var(--link-color);
   text-decoration: underline;
