@@ -50,8 +50,9 @@ function setupSearch() {
             const method = item.querySelector('.jv-request-method').textContent.toLowerCase();
             const url = item.querySelector('.jv-request-url').title.toLowerCase();
             const name = item.querySelector('.jv-request-url').textContent.toLowerCase();
+            const status = item.querySelector('.jv-request-status').textContent.toLowerCase();
             
-            if (method.includes(query) || url.includes(query) || name.includes(query)) {
+            if (method.includes(query) || url.includes(query) || name.includes(query) || status.includes(query)) {
                 item.style.display = 'flex';
             } else {
                 item.style.display = 'none';
@@ -134,8 +135,9 @@ function addRequestToList(request) {
         const method = request.request.method.toLowerCase();
         const urlStr = request.request.url.toLowerCase();
         const nameStr = name.toLowerCase();
+        const status = (request.response.status + ' ' + request.response.statusText).toLowerCase();
         
-        if (!method.includes(query) && !urlStr.includes(query) && !nameStr.includes(query)) {
+        if (!method.includes(query) && !urlStr.includes(query) && !nameStr.includes(query) && !status.includes(query)) {
             item.style.display = 'none';
         }
     }
