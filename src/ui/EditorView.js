@@ -466,8 +466,8 @@ export class EditorView {
     updateVirtualWindow(liveContent = null) {
         if (!this.lineHeight || !this.lineOffsets || this.lineCount === 0) return;
 
-        const content = liveContent || this.content;
-        const isDirty = !!liveContent;
+        const content = liveContent !== null ? liveContent : this.content;
+        const isDirty = liveContent !== null;
 
         const scrollTop = this.textarea.scrollTop;
         const containerHeight = this.textarea.clientHeight;
