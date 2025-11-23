@@ -213,8 +213,7 @@ function addRequestToList(request) {
                 const json = JSON.parse(content.trim());
                 renderViewer(json, content);
             } catch (e) {
-                console.error('Failed to parse JSON', e);
-                // Show viewer with invalid flag
+                // Not JSON, render as raw text
                 renderViewer(null, content, { isInvalid: true });
             }
         });
