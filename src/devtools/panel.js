@@ -63,6 +63,9 @@ function clearList() {
                 <div style="text-align: center;">
                     <p>Select a JSON request to view</p>
                     <p style="font-size: 0.8em; opacity: 0.7;">Monitoring network traffic...</p>
+                    <div style="margin-top: 20px; font-size: 0.85em; opacity: 0.6; max-width: 280px; line-height: 1.5;">
+                        Note: Extensions cannot modify the native Network tab. Use this panel to inspect JSON, or right-click a request and "Open in new tab".
+                    </div>
                 </div>
             </div>
         `;
