@@ -81,97 +81,91 @@ export class EditorView {
         const workerCode = `
             self.onmessage = function(e) {
                 const text = e.data;
+                const result = { error: null, offsets: null, count: 0 };
+                
+                // 1. Scan Lines
+                try {
+                    const estimatedLines = Math.max(1000, Math.ceil(text.length / 40));
+                    let offsets = new Uint32Array(estimatedLines);
+                    let count = 0;
+                    
+                    offsets[count++] = 0;
+                    let pos = -1;
+                    
+                    while ((pos = text.indexOf('\\n', pos + 1)) !== -1) {
+                        if (count === offsets.length) {
+                            const newOffsets = new Uint32Array(offsets.length * 2);
+                            newOffsets.set(offsets);
+                            offsets = newOffsets;
+                        }
+                        offsets[count++] = pos + 1;
+                    }
+                    
+                    if (count === offsets.length) {
+                        const newOffsets = new Uint32Array(offsets.length + 1);
+                        newOffsets.set(offsets);
+                        offsets = newOffsets;
+                    }
+                    offsets[count++] = text.length + 1;
+                    
+                    // Trim to exact size for transfer
+                    result.offsets = offsets.slice(0, count);
+                    result.count = count;
+                } catch (err) {
+                    console.error('Worker scan error', err);
+                }
+
+                // 2. Validate JSON
                 try {
                     JSON.parse(text);
-                    self.postMessage({ error: null });
                 } catch (e) {
                     const match = e.message.match(/at position (\\d+)/);
-                    self.postMessage({
-                        error: {
-                            pos: match ? parseInt(match[1], 10) : -1,
-                            message: e.message
-                        }
-                    });
+                    result.error = {
+                        pos: match ? parseInt(match[1], 10) : -1,
+                        message: e.message
+                    };
                 }
+                
+                // Transfer the buffer to avoid copy
+                self.postMessage(result, [result.offsets.buffer]);
             };
         `;
         const blob = new Blob([workerCode], { type: 'application/javascript' });
         this.worker = new Worker(URL.createObjectURL(blob));
         this.worker.onmessage = (e) => {
-            this.error = e.data.error;
-            this.updateVirtualWindow(); // Re-render to show/hide error
+            const { error, offsets, count } = e.data;
+            
+            // Update state
+            this.error = error;
+            this.lineOffsets = offsets;
+            this.lineCount = count;
+            
+            // Restore UI
+            this.updateVirtualWindow();
+            this.textarea.classList.remove('dirty');
+            this.code.style.display = 'block';
         };
     }
 
-    scanLines(text) {
-        // Use Uint32Array for memory efficiency (4 bytes per line vs ~8-16 bytes for JS numbers)
-        // 100MB file with 30 chars/line = ~3.3M lines. 
-        // Uint32Array = 13MB. JS Array = ~50MB+.
-        
-        const estimatedLines = Math.max(1000, Math.ceil(text.length / 40));
-        
-        // Reuse buffer if possible
-        let offsets = this.lineOffsets;
-        if (!offsets || offsets.length < estimatedLines) {
-             offsets = new Uint32Array(estimatedLines + 1000); // Add buffer
-        }
-        
-        let count = 0;
-        
-        offsets[count++] = 0;
-        let pos = -1;
-        
-        while ((pos = text.indexOf('\n', pos + 1)) !== -1) {
-            if (count === offsets.length) {
-                // Resize
-                const newOffsets = new Uint32Array(offsets.length * 2);
-                newOffsets.set(offsets);
-                offsets = newOffsets;
-            }
-            offsets[count++] = pos + 1;
-        }
-        
-        // Add end
-        if (count === offsets.length) {
-            const newOffsets = new Uint32Array(offsets.length + 1);
-            newOffsets.set(offsets);
-            offsets = newOffsets;
-        }
-        offsets[count++] = text.length + 1;
-        
-        // Store the full buffer but track the valid length
-        this.lineOffsets = offsets;
-        this.lineCount = count;
-    }
+    // Removed scanLines method as it is now in worker
 
     handleInput() {
         // Show raw text immediately to prevent lag
         this.textarea.classList.add('dirty');
         this.code.style.display = 'none';
 
-        // Debounce the heavy lifting
+        // Debounce
         if (this.inputTimer) clearTimeout(this.inputTimer);
         this.inputTimer = setTimeout(() => {
             this.content = this.textarea.value;
-            this.scanLines(this.content);
-            this.updateVirtualWindow();
-            
-            // Restore highlighting
-            this.textarea.classList.remove('dirty');
-            this.code.style.display = 'block';
-        }, 100); // Fast update for highlighting
-
-        // Separate debounce for validation (heavy)
-        if (this.validationTimer) clearTimeout(this.validationTimer);
-        this.validationTimer = setTimeout(() => {
-            this.validate();
-        }, 500); // Slower update for validation
+            if (this.worker) {
+                this.worker.postMessage(this.content);
+            }
+        }, 150);
     }
 
     validate() {
-        if (this.worker) {
-            this.worker.postMessage(this.content);
-        }
+        // No-op, handled in worker with scan
     }
 
     handleScroll() {
