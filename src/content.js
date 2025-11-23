@@ -157,31 +157,63 @@ function injectViewButton(element, jsonText) {
     element.appendChild(btn);
 }
 
+// Polyfill for requestIdleCallback
+const requestIdleCallback = window.requestIdleCallback || function(cb) {
+    return setTimeout(() => {
+        const start = Date.now();
+        cb({ 
+            didTimeout: false,
+            timeRemaining: () => Math.max(0, 50 - (Date.now() - start))
+        });
+    }, 1);
+};
+
+let codeBlockObserver;
+
 function scanForJsonCodeBlocks() {
+    // Initialize observer once
+    if (!codeBlockObserver) {
+        codeBlockObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const element = entry.target;
+                    
+                    // Stop observing once processed
+                    codeBlockObserver.unobserve(element);
+                    
+                    if (element.dataset.jvProcessed) return;
+                    if (element.closest('#json-viewer-root') || element.closest('#jv-modal-root')) return;
+                    
+                    const text = element.textContent;
+                    // Quick check before expensive parse
+                    if (text.length > 2 && (text.trim().startsWith('{') || text.trim().startsWith('['))) {
+                        // Defer parsing to idle time to avoid blocking scroll
+                        requestIdleCallback(() => {
+                            if (isValidJson(text)) {
+                                injectViewButton(element, text);
+                                element.dataset.jvProcessed = 'true';
+                                // Mark children code blocks as processed too
+                                if (element.tagName === 'PRE') {
+                                    element.querySelectorAll('code').forEach(c => c.dataset.jvProcessed = 'true');
+                                }
+                            }
+                        }, { timeout: 1000 });
+                    }
+                }
+            });
+        }, {
+            rootMargin: '200px' // Pre-load slightly before visible
+        });
+    }
+
     // 1. Look for PRE elements
     document.querySelectorAll('pre').forEach(pre => {
-        if (pre.dataset.jvProcessed) return;
-        if (pre.closest('#json-viewer-root') || pre.closest('#jv-modal-root')) return;
-        
-        const text = pre.textContent;
-        if (isValidJson(text)) {
-            injectViewButton(pre, text);
-            pre.dataset.jvProcessed = 'true';
-            // Mark children code blocks as processed too so we don't double up
-            pre.querySelectorAll('code').forEach(c => c.dataset.jvProcessed = 'true');
-        }
+        if (!pre.dataset.jvProcessed) codeBlockObserver.observe(pre);
     });
 
     // 2. Look for CODE elements (that weren't handled by PRE)
     document.querySelectorAll('code').forEach(code => {
-        if (code.dataset.jvProcessed) return;
-        if (code.closest('#json-viewer-root') || code.closest('#jv-modal-root')) return;
-
-        const text = code.textContent;
-        if (isValidJson(text)) {
-            injectViewButton(code, text);
-            code.dataset.jvProcessed = 'true';
-        }
+        if (!code.dataset.jvProcessed) codeBlockObserver.observe(code);
     });
 }
 
