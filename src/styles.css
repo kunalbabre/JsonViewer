@@ -486,15 +486,26 @@ body.json-viewer-active {
   outline: none;
 }
 
+/* When editing (dirty state), show the raw text to prevent invisible typing lag */
+.jv-editor-textarea.dirty {
+  color: var(--text-color);
+}
+
 .jv-editor-pre {
   z-index: 1;
   background-color: var(--bg-color);
   color: var(--text-color);
   pointer-events: none;
+  overflow: hidden; /* Virtualization viewport */
 }
 
 .jv-editor-code {
   font-family: inherit;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  will-change: transform;
 }
 
 .jv-token-string { color: var(--string-color); }

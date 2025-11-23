@@ -9,9 +9,8 @@ export class EditorView {
         this.element = document.createElement('div');
         this.element.className = 'jv-editor-container';
         
-        // Check file size for performance
-        this.isLargeFile = this.content.length > 500000; // 500KB threshold for syntax highlighting
-        
+        this.lineOffsets = [];
+        this.lineHeight = 21; // Default estimate
         this.render();
     }
 
@@ -38,54 +37,109 @@ export class EditorView {
         const editorWrapper = document.createElement('div');
         editorWrapper.className = 'jv-editor-wrapper';
 
-        if (this.isLargeFile) {
-            // Plain textarea for large files
-            this.textarea = document.createElement('textarea');
-            this.textarea.className = 'jv-raw'; // Reuse raw style
-            this.textarea.value = this.content;
-            this.textarea.spellcheck = false;
-            editorWrapper.appendChild(this.textarea);
-            
-            const warning = document.createElement('div');
-            warning.className = 'jv-editor-warning';
-            warning.textContent = 'Syntax highlighting disabled for large file performance.';
-            this.element.appendChild(warning);
-        } else {
-            // Syntax highlighted editor
-            this.pre = document.createElement('pre');
-            this.pre.className = 'jv-editor-pre';
-            this.pre.ariaHidden = 'true';
-            
-            this.code = document.createElement('code');
-            this.code.className = 'jv-editor-code';
-            this.pre.appendChild(this.code);
+        // Syntax highlighted editor structure (always used)
+        this.pre = document.createElement('pre');
+        this.pre.className = 'jv-editor-pre';
+        this.pre.ariaHidden = 'true';
+        
+        this.code = document.createElement('code');
+        this.code.className = 'jv-editor-code';
+        this.pre.appendChild(this.code);
 
-            this.textarea = document.createElement('textarea');
-            this.textarea.className = 'jv-editor-textarea';
-            this.textarea.value = this.content;
-            this.textarea.spellcheck = false;
-            this.textarea.oninput = () => this.updateHighlighting();
-            this.textarea.onscroll = () => this.syncScroll();
-            
-            // Initial highlight
-            this.updateHighlighting();
-
-            editorWrapper.appendChild(this.pre);
-            editorWrapper.appendChild(this.textarea);
-        }
-
+        this.textarea = document.createElement('textarea');
+        this.textarea.className = 'jv-editor-textarea';
+        this.textarea.value = this.content;
+        this.textarea.spellcheck = false;
+        
+        // Event Listeners
+        this.textarea.oninput = () => this.handleInput();
+        this.textarea.onscroll = () => this.handleScroll();
+        
+        editorWrapper.appendChild(this.pre);
+        editorWrapper.appendChild(this.textarea);
         this.element.appendChild(editorWrapper);
+
+        // Initialize
+        setTimeout(() => this.init(), 0);
     }
 
-    updateHighlighting() {
-        const text = this.textarea.value;
-        // Simple JSON syntax highlighter
-        this.code.innerHTML = this.highlight(text);
+    init() {
+        this.measureLineHeight();
+        this.scanLines(this.content);
+        this.updateVirtualWindow();
     }
 
-    syncScroll() {
-        this.pre.scrollTop = this.textarea.scrollTop;
+    measureLineHeight() {
+        const div = document.createElement('div');
+        div.style.cssText = 'position:absolute;visibility:hidden;height:auto;width:auto;white-space:pre;font-family:var(--mono-font);font-size:0.9rem;line-height:1.5;padding:0;border:0;';
+        div.textContent = 'M';
+        this.element.appendChild(div);
+        this.lineHeight = div.offsetHeight;
+        this.element.removeChild(div);
+    }
+
+    scanLines(text) {
+        this.lineOffsets = [0];
+        let pos = -1;
+        while ((pos = text.indexOf('\n', pos + 1)) !== -1) {
+            this.lineOffsets.push(pos + 1);
+        }
+        this.lineOffsets.push(text.length + 1);
+    }
+
+    handleInput() {
+        // Show raw text immediately to prevent lag
+        this.textarea.classList.add('dirty');
+        this.code.style.display = 'none';
+
+        // Debounce the heavy lifting
+        if (this.inputTimer) clearTimeout(this.inputTimer);
+        this.inputTimer = setTimeout(() => {
+            this.content = this.textarea.value;
+            this.scanLines(this.content);
+            this.updateVirtualWindow();
+            
+            // Restore highlighting
+            this.textarea.classList.remove('dirty');
+            this.code.style.display = 'block';
+        }, 200);
+    }
+
+    handleScroll() {
+        // Sync horizontal scroll
         this.pre.scrollLeft = this.textarea.scrollLeft;
+        
+        // Virtualize vertical scroll
+        requestAnimationFrame(() => this.updateVirtualWindow());
+    }
+
+    updateVirtualWindow() {
+        if (!this.lineHeight || this.lineOffsets.length === 0) return;
+
+        const scrollTop = this.textarea.scrollTop;
+        const containerHeight = this.textarea.clientHeight;
+        
+        const startLine = Math.floor(scrollTop / this.lineHeight);
+        const visibleLines = Math.ceil(containerHeight / this.lineHeight);
+        
+        // Buffer lines to prevent flickering
+        const buffer = 5;
+        const renderStartLine = Math.max(0, startLine - buffer);
+        const renderEndLine = Math.min(this.lineOffsets.length - 1, startLine + visibleLines + buffer);
+        
+        const startIndex = this.lineOffsets[renderStartLine];
+        const endIndex = this.lineOffsets[renderEndLine]; // Start of next line is end of this range
+
+        // Slice the visible text
+        // Note: endIndex might be undefined if we are at the very end
+        const visibleText = this.content.substring(startIndex, endIndex !== undefined ? endIndex : this.content.length);
+        
+        // Highlight only the visible text
+        this.code.innerHTML = this.highlight(visibleText);
+        
+        // Position the code block
+        const topOffset = renderStartLine * this.lineHeight;
+        this.code.style.transform = `translateY(${topOffset}px)`;
     }
 
     highlight(json) {
@@ -113,10 +167,10 @@ export class EditorView {
     format() {
         try {
             const current = JSON.parse(this.textarea.value);
-            this.textarea.value = JSON.stringify(current, null, 2);
-            if (!this.isLargeFile) {
-                this.updateHighlighting();
-            }
+            this.content = JSON.stringify(current, null, 2);
+            this.textarea.value = this.content;
+            this.scanLines(this.content);
+            this.updateVirtualWindow();
             Toast.show('Formatted JSON');
         } catch (e) {
             Toast.show('Invalid JSON: ' + e.message);
