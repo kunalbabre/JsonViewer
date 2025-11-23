@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Viewer Icon Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            background: #1a1a1a;
+            color: white;
+        }
+
+        .icon-container {
+            display: flex;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20%;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+        }
+
+        .icon-128 {
+            width: 128px;
+            height: 128px;
+            font-size: 64px;
+        }
+
+        .icon-48 {
+            width: 48px;
+            height: 48px;
+            font-size: 24px;
+        }
+
+        .icon-16 {
+            width: 16px;
+            height: 16px;
+            font-size: 8px;
+        }
+
+        button {
+            margin: 1rem;
+            padding: 0.75rem 1.5rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        button:hover {
+            background: #764ba2;
+        }
+
+        .instructions {
+            max-width: 600px;
+            background: #2a2a2a;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+        }
+
+        h2 {
+            margin-top: 1.5rem;
+            font-size: 1.2rem;
+        }
+
+        ol {
+            margin-left: 1.5rem;
+        }
+
+        li {
+            margin: 0.5rem 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>JSON Viewer Extension Icons</h1>
+    <p>Right-click each icon and "Save Image As..." to download</p>
+
+    <div class="icon-container">
+        <div>
+            <canvas id="icon128" class="icon icon-128"></canvas>
+            <p style="text-align: center;">128x128</p>
+        </div>
+        <div>
+            <canvas id="icon48" class="icon icon-48"></canvas>
+            <p style="text-align: center;">48x48</p>
+        </div>
+        <div>
+            <canvas id="icon16" class="icon icon-16"></canvas>
+            <p style="text-align: center;">16x16</p>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <h2>How to Save Icons:</h2>
+        <ol>
+            <li>Right-click on each icon above</li>
+            <li>Select "Save Image As..."</li>
+            <li>Save as:
+                <ul>
+                    <li><code>icon128.png</code></li>
+                    <li><code>icon48.png</code></li>
+                    <li><code>icon16.png</code></li>
+                </ul>
+            </li>
+            <li>Place them in the <code>icons/</code> folder</li>
+        </ol>
+
+        <h2>Alternative - Use Online Tools:</h2>
+        <p>You can also create icons using:</p>
+        <ul>
+            <li><a href="https://www.canva.com" target="_blank" style="color: #667eea;">Canva</a> - Free design tool
+            </li>
+            <li><a href="https://www.figma.com" target="_blank" style="color: #667eea;">Figma</a> - Professional design
+            </li>
+        </ul>
+        <p>Just create a square with the <code>{}</code> symbol in a bold font on a gradient background!</p>
+    </div>
+
+    <script>
+        function drawIcon(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+
+            // Set canvas size
+            canvas.width = size;
+            canvas.height = size;
+
+            // Create gradient background
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+
+            // Draw rounded rectangle background
+            const radius = size * 0.2;
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.moveTo(radius, 0);
+            ctx.lineTo(size - radius, 0);
+            ctx.quadraticCurveTo(size, 0, size, radius);
+            ctx.lineTo(size, size - radius);
+            ctx.quadraticCurveTo(size, size, size - radius, size);
+            ctx.lineTo(radius, size);
+            ctx.quadraticCurveTo(0, size, 0, size - radius);
+            ctx.lineTo(0, radius);
+            ctx.quadraticCurveTo(0, 0, radius, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw {} text
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.5}px "Courier New", monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('{}', size / 2, size / 2);
+        }
+
+        // Draw all icons
+        drawIcon('icon128', 128);
+        drawIcon('icon48', 48);
+        drawIcon('icon16', 16);
+    </script>
+</body>
+
+</html>
