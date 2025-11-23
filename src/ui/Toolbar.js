@@ -57,14 +57,14 @@ export class Toolbar {
         this.createSeparator(controls);
 
         // View Toggles
-        const views = ['tree', 'schema', 'yaml', 'raw'];
+        const views = ['tree', 'editor', 'schema', 'yaml', 'raw'];
         this.viewButtons = {};
         views.forEach(view => {
             const btn = document.createElement('button');
             btn.className = `jv-btn ${view === currentView ? 'active' : ''}`;
-            const label = view.charAt(0).toUpperCase() + view.slice(1);
+            const label = view === 'editor' ? 'Editor' : view.charAt(0).toUpperCase() + view.slice(1);
             btn.title = `${label} View`;
-            btn.innerHTML = `${Icons[view]} <span>${label}</span>`;
+            btn.innerHTML = `${Icons[view] || Icons.tree} <span>${label}</span>`; // Fallback icon
             btn.onclick = () => onViewChange(view);
             this.viewButtons[view] = btn;
             controls.appendChild(btn);

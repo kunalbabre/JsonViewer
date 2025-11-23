@@ -3,6 +3,7 @@ import { Toolbar } from './Toolbar.js';
 import { TreeView } from './TreeView.js';
 import { SchemaView } from './SchemaView.js';
 import { YamlView } from './YamlView.js';
+import { EditorView } from './EditorView.js';
 import { Toast } from './Toast.js';
 
 export class Viewer {
@@ -154,6 +155,19 @@ export class Viewer {
             if (this.searchQuery.length > 2) {
                 this.treeView.expandAll();
             }
+
+        } else if (this.currentView === 'editor') {
+            const editor = new EditorView(this.data, (newData) => {
+                this.data = newData;
+                this.rawData = JSON.stringify(newData, null, 2);
+                // Clear cache to force re-render of other views with new data
+                this.viewCache = {};
+                // Re-cache this editor instance so we don't lose cursor position/state if we switch back immediately
+                // Actually, if we update data, we probably want to re-render everything.
+                // But for now, let's just update the data reference.
+            });
+            this.contentContainer.appendChild(editor.element);
+            this.viewCache[this.currentView] = editor.element;
 
         } else if (this.currentView === 'raw') {
             const container = document.createElement('div');
