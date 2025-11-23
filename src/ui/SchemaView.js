@@ -72,15 +72,11 @@ export class SchemaView {
                         if (itemSchemas.length > 0) {
                             // Use first element as initial value to avoid merging with empty object
                             schema.items = itemSchemas.reduce((acc, curr) => mergeSchemas(acc, curr));
-                        } else {
-                            schema.items = {};
                         }
                         
                         if (data.length > sampleSize) {
                             schema.note = \`Schema generated from \${sampleSize} of \${data.length} items\`;
                         }
-                    } else {
-                        schema.items = {};
                     }
                     return schema;
                 }
