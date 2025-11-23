@@ -262,11 +262,22 @@ export class Viewer {
         }
 
         // Remove old highlights
-        document.querySelectorAll('.jv-highlight, .jv-highlight-current').forEach(el => {
-            el.classList.remove('jv-highlight', 'jv-highlight-current');
-            el.style.backgroundColor = '';
-            el.style.color = '';
-        });
+        // Only remove highlights from the current view to avoid clearing state of other views
+        const currentViewElement = this.viewCache[this.currentView];
+        if (currentViewElement) {
+            currentViewElement.querySelectorAll('.jv-highlight, .jv-highlight-current').forEach(el => {
+                el.classList.remove('jv-highlight', 'jv-highlight-current');
+                el.style.backgroundColor = '';
+                el.style.color = '';
+            });
+        } else {
+            // Fallback if view not found (shouldn't happen)
+            document.querySelectorAll('.jv-highlight, .jv-highlight-current').forEach(el => {
+                el.classList.remove('jv-highlight', 'jv-highlight-current');
+                el.style.backgroundColor = '';
+                el.style.color = '';
+            });
+        }
 
         // Find and highlight all matches
         this.searchMatches = [];
@@ -280,8 +291,8 @@ export class Viewer {
 
         // Special handling for Raw View (Textarea)
         if (this.currentView === 'raw') {
-            const textarea = this.contentContainer.querySelector('textarea');
-            const backdrop = this.contentContainer.querySelector('.jv-raw-backdrop');
+            const textarea = currentViewElement ? currentViewElement.querySelector('textarea') : null;
+            const backdrop = currentViewElement ? currentViewElement.querySelector('.jv-raw-backdrop') : null;
             
             if (textarea && backdrop) {
                 const text = textarea.value;
@@ -338,8 +349,11 @@ export class Viewer {
         }
 
         // Search in all text nodes
+        // Only search within the current view to avoid counting matches in hidden tabs
+        if (!currentViewElement) return;
+
         const walker = document.createTreeWalker(
-            this.contentContainer,
+            currentViewElement,
             NodeFilter.SHOW_TEXT,
             null
         );
