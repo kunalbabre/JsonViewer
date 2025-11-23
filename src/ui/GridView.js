@@ -97,8 +97,8 @@ export class GridView {
             }
 
             if (rowIndex < this.data.length) {
-                // Show loading indicator
-                if (rowIndex === GRID_BATCH_SIZE) {
+                // Show loading indicator between batches
+                if (rowIndex > 0 && rowIndex % GRID_BATCH_SIZE === 0) {
                     const loadingRow = document.createElement('tr');
                     const loadingCell = document.createElement('td');
                     loadingCell.colSpan = columns.length;

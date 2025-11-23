@@ -71,9 +71,9 @@ export class TreeView {
         // Toggler for objects/arrays
         if (isExpandable) {
             const toggler = document.createElement('span');
+            const valueKeys = Object.keys(value);
             // Start collapsed for deep nesting or large arrays/objects
-            const shouldCollapse = depth > DEEP_NESTING_THRESHOLD || 
-                (typeof value === 'object' && Object.keys(value).length > LARGE_OBJECT_THRESHOLD);
+            const shouldCollapse = depth > DEEP_NESTING_THRESHOLD || valueKeys.length > LARGE_OBJECT_THRESHOLD;
             toggler.className = shouldCollapse ? 'jv-toggler' : 'jv-toggler expanded';
             toggler.textContent = '▶';
             toggler.onclick = (e) => {
@@ -132,7 +132,7 @@ export class TreeView {
 
             const countSpan = document.createElement('span');
             countSpan.className = 'jv-item-count';
-            const count = Object.keys(value).length;
+            const count = valueKeys.length;
             countSpan.textContent = `${count} ${count === 1 ? 'item' : 'items'}`;
             header.appendChild(countSpan);
         }
@@ -197,9 +197,16 @@ export class TreeView {
         this.renderBatch(data, container, path, 0);
     }
 
+    // Legacy method kept for backward compatibility - delegates to lazy version
     toggleNode(node, toggler) {
-        toggler.classList.toggle('expanded');
+        // Find the value and path to enable lazy loading
         const childrenContainer = node.querySelector('.jv-children');
+        if (childrenContainer && childrenContainer.children.length === 0) {
+            // If children not loaded yet, this is called from old code
+            // We can't lazy load without the value, so just toggle visibility
+            console.warn('toggleNode called without lazy loading context - use toggleNodeLazy instead');
+        }
+        toggler.classList.toggle('expanded');
         if (childrenContainer) {
             childrenContainer.classList.toggle('hidden');
         }

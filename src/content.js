@@ -14,7 +14,7 @@ function isJSON(text) {
 }
 
 // Performance tuning constant
-const LARGE_FILE_THRESHOLD = 1024 * 1024; // 1 MB threshold for showing loading indicator
+const LARGE_FILE_THRESHOLD = 1048576; // 1 MB threshold for showing loading indicator
 
 (async function () {
     try {
