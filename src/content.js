@@ -60,10 +60,31 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage)
     });
 }
 
+let currentModalCleanup = null;
+
 function showModal(json, rawData) {
-    // Remove existing modal if any
+    // Cleanup existing modal if any
+    if (currentModalCleanup) {
+        currentModalCleanup();
+    }
+    
+    // Double check DOM just in case
     const existing = document.getElementById('jv-modal-root');
     if (existing) existing.remove();
+
+    // Prevent background scrolling
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const closeModal = () => {
+        const m = document.getElementById('jv-modal-root');
+        if (m) m.remove();
+        document.body.style.overflow = originalOverflow;
+        document.removeEventListener('keydown', escHandler);
+        currentModalCleanup = null;
+    };
+    
+    currentModalCleanup = closeModal;
 
     // Create Modal Container
     const modal = document.createElement('div');
@@ -72,7 +93,7 @@ function showModal(json, rawData) {
     
     // Close on click outside
     modal.onclick = (e) => {
-        if (e.target === modal) modal.remove();
+        if (e.target === modal) closeModal();
     };
 
     // Modal Content
@@ -83,7 +104,7 @@ function showModal(json, rawData) {
     const closeBtn = document.createElement('button');
     closeBtn.className = 'jv-modal-close';
     closeBtn.innerHTML = '&times;';
-    closeBtn.onclick = () => modal.remove();
+    closeBtn.onclick = () => closeModal();
     content.appendChild(closeBtn);
 
     // Viewer Container
@@ -111,8 +132,7 @@ function showModal(json, rawData) {
     // Handle Escape
     const escHandler = (e) => {
         if (e.key === 'Escape') {
-            modal.remove();
-            document.removeEventListener('keydown', escHandler);
+            closeModal();
         }
     };
     document.addEventListener('keydown', escHandler);
