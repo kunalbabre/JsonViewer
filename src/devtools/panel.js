@@ -29,7 +29,7 @@ chrome.devtools.network.onRequestFinished.addListener(request => {
             // Skip empty responses
             if (content.trim().length === 0) return;
             
-            addRequestToList(request);
+            addRequestToList(request, content);
         });
     }
 });
@@ -139,7 +139,7 @@ function setupTheme() {
     }
 }
 
-function addRequestToList(request) {
+function addRequestToList(request, content) {
     const list = document.getElementById('request-list');
     const item = document.createElement('div');
     item.className = 'jv-request-item';
@@ -155,7 +155,16 @@ function addRequestToList(request) {
     
     // Check if it's likely JSON
     const mimeType = (request.response.content.mimeType || '').toLowerCase();
-    const isJson = mimeType.includes('json') || mimeType.includes('javascript') || mimeType.includes('application/x-amz-json-1.1');
+    let isJson = mimeType.includes('json') || mimeType.includes('application/x-amz-json-1.1');
+    
+    // If not explicitly JSON, check content for JSON-like structure
+    if (!isJson && content) {
+        const trimmed = content.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            isJson = true;
+        }
+    }
+    
     item.dataset.isJson = isJson;
 
     item.innerHTML = `
