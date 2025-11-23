@@ -19,7 +19,12 @@
                         </button>
                     </div>
                 </div>
-                <input type="text" id="request-search" class="jv-request-search" placeholder="Filter requests...">
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <input type="text" id="request-search" class="jv-request-search" placeholder="Filter..." style="flex: 1;">
+                    <label title="Show only JSON responses" style="display: flex; align-items: center; font-size: 11px; cursor: pointer; user-select: none; white-space: nowrap; color: var(--text-color);">
+                        <input type="checkbox" id="json-only-filter" style="margin: 0 4px 0 0;"> JSON
+                    </label>
+                </div>
             </div>
             <div id="request-list" class="jv-request-list"></div>
         </div>

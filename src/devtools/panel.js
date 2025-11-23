@@ -41,10 +41,12 @@ chrome.devtools.network.onNavigated.addListener(() => {
 
 function setupSearch() {
     const searchInput = document.getElementById('request-search');
-    if (!searchInput) return;
+    const jsonFilter = document.getElementById('json-only-filter');
 
-    searchInput.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase();
+    const filterRequests = () => {
+        const query = searchInput ? searchInput.value.toLowerCase() : '';
+        const jsonOnly = jsonFilter ? jsonFilter.checked : false;
+        
         const items = document.querySelectorAll('.jv-request-item');
         
         items.forEach(item => {
@@ -52,14 +54,21 @@ function setupSearch() {
             const url = item.querySelector('.jv-request-url').title.toLowerCase();
             const name = item.querySelector('.jv-request-url').textContent.toLowerCase();
             const status = item.querySelector('.jv-request-status').textContent.toLowerCase();
+            const isJson = item.dataset.isJson === 'true';
             
-            if (method.includes(query) || url.includes(query) || name.includes(query) || status.includes(query)) {
+            const matchesText = !query || method.includes(query) || url.includes(query) || name.includes(query) || status.includes(query);
+            const matchesType = !jsonOnly || isJson;
+            
+            if (matchesText && matchesType) {
                 item.style.display = 'flex';
             } else {
                 item.style.display = 'none';
             }
         });
-    });
+    };
+
+    if (searchInput) searchInput.addEventListener('input', filterRequests);
+    if (jsonFilter) jsonFilter.addEventListener('change', filterRequests);
 }
 
 function setupClearButton() {
@@ -144,6 +153,11 @@ function addRequestToList(request) {
     
     const name = url.pathname.split('/').pop() || url.hostname || 'Request';
     
+    // Check if it's likely JSON
+    const mimeType = (request.response.content.mimeType || '').toLowerCase();
+    const isJson = mimeType.includes('json') || mimeType.includes('javascript') || mimeType.includes('application/x-amz-json-1.1');
+    item.dataset.isJson = isJson;
+
     item.innerHTML = `
         <div style="display:flex;align-items:center;">
             <span class="jv-request-method">${request.request.method}</span>
@@ -152,16 +166,23 @@ function addRequestToList(request) {
         <div class="jv-request-status">${request.response.status} ${request.response.statusText}</div>
     `;
 
-    // Apply current search filter
+    // Apply current filters
     const searchInput = document.getElementById('request-search');
-    if (searchInput && searchInput.value) {
-        const query = searchInput.value.toLowerCase();
+    const jsonFilter = document.getElementById('json-only-filter');
+    
+    if (searchInput || jsonFilter) {
+        const query = searchInput ? searchInput.value.toLowerCase() : '';
+        const jsonOnly = jsonFilter ? jsonFilter.checked : false;
+        
         const method = request.request.method.toLowerCase();
         const urlStr = request.request.url.toLowerCase();
         const nameStr = name.toLowerCase();
         const status = (request.response.status + ' ' + request.response.statusText).toLowerCase();
         
-        if (!method.includes(query) && !urlStr.includes(query) && !nameStr.includes(query) && !status.includes(query)) {
+        const matchesText = !query || method.includes(query) || urlStr.includes(query) || nameStr.includes(query) || status.includes(query);
+        const matchesType = !jsonOnly || isJson;
+
+        if (!matchesText || !matchesType) {
             item.style.display = 'none';
         }
     }
