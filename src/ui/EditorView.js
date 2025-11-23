@@ -59,6 +59,7 @@ export class EditorView {
         // Event Listeners
         this.textarea.oninput = () => this.handleInput();
         this.textarea.onscroll = () => this.handleScroll();
+        this.textarea.onkeydown = (e) => this.handleKeydown(e);
         
         editorWrapper.appendChild(this.pre);
         editorWrapper.appendChild(this.textarea);
@@ -84,7 +85,34 @@ export class EditorView {
     initWorker() {
         const workerCode = `
             self.onmessage = function(e) {
-                const { text, version } = e.data;
+                const { text, version, action } = e.data;
+                
+                if (action === 'format') {
+                    try {
+                        const parsed = JSON.parse(text);
+                        const formatted = JSON.stringify(parsed, null, 2);
+                        
+                        // We need to rescan the formatted text
+                        // Reuse the scan logic below by setting text = formatted
+                        // But we need to send back the new text too
+                        
+                        self.postMessage({ 
+                            formattedText: formatted,
+                            version: version,
+                            action: 'formatComplete'
+                        });
+                        
+                        // Continue to scan the new text
+                        // Recursive call or just fall through? 
+                        // Let's just trigger a new message to self or handle it here.
+                        // Simpler: Client handles the update and sends a new scan request.
+                        return;
+                    } catch (err) {
+                        self.postMessage({ error: { message: err.message }, version, action: 'formatError' });
+                        return;
+                    }
+                }
+
                 const result = { error: null, offsets: null, count: 0, version };
                 
                 // 1. Scan Lines
@@ -137,8 +165,24 @@ export class EditorView {
         const blob = new Blob([workerCode], { type: 'application/javascript' });
         this.worker = new Worker(URL.createObjectURL(blob));
         this.worker.onmessage = (e) => {
-            const { error, offsets, count, version } = e.data;
+            const { error, offsets, count, version, action, formattedText } = e.data;
             
+            if (action === 'formatComplete') {
+                if (version === this.version) {
+                    this.content = formattedText;
+                    this.textarea.value = this.content;
+                    this.version++; // Invalidate old requests
+                    this.worker.postMessage({ text: this.content, version: this.version });
+                    Toast.show('Formatted JSON');
+                }
+                return;
+            }
+            
+            if (action === 'formatError') {
+                Toast.show('Invalid JSON: ' + error.message);
+                return;
+            }
+
             // Ignore outdated results
             if (version !== this.version) return;
             
@@ -156,6 +200,34 @@ export class EditorView {
 
     // Removed scanLines method as it is now in worker
 
+    handleKeydown(e) {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            
+            // Use setRangeText for better performance than value concatenation
+            // This also preserves undo history in some browsers, but not all.
+            // execCommand is deprecated but 'insertText' is the only way to preserve undo stack reliably.
+            
+            try {
+                // Try modern API first
+                if (!document.execCommand('insertText', false, '  ')) {
+                    // Fallback
+                    const start = this.textarea.selectionStart;
+                    const end = this.textarea.selectionEnd;
+                    this.textarea.setRangeText('  ', start, end, 'end');
+                    // Manually trigger input event since setRangeText doesn't fire it
+                    this.handleInput(); 
+                }
+            } catch (err) {
+                // Fallback for very old browsers or if execCommand fails
+                const start = this.textarea.selectionStart;
+                const end = this.textarea.selectionEnd;
+                this.textarea.setRangeText('  ', start, end, 'end');
+                this.handleInput();
+            }
+        }
+    }
+
     handleInput() {
         // Show raw text immediately to prevent lag
         this.textarea.classList.add('dirty');
@@ -169,6 +241,8 @@ export class EditorView {
             // Use requestIdleCallback to avoid blocking main thread if busy
             const update = () => {
                 // This is the heavy operation (reading 100MB string)
+                // We can't avoid reading it, but we can try to minimize impact.
+                // Accessing .value forces a layout and string copy.
                 this.content = this.textarea.value;
                 this.version++; // Increment version
                 if (this.worker) {
@@ -268,6 +342,14 @@ export class EditorView {
 
     highlight(json) {
         if (!json) return '';
+        
+        // Performance: If line is too long (e.g. minified JSON), truncate highlighting
+        // to prevent regex engine from freezing the main thread.
+        if (json.length > 20000) {
+            return json.substring(0, 20000).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + 
+                   '<span class="jv-token-null">... (highlighting disabled for long line)</span>';
+        }
+
         // Escape HTML
         json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         
@@ -290,12 +372,22 @@ export class EditorView {
 
     format() {
         try {
-            const current = JSON.parse(this.textarea.value);
-            this.content = JSON.stringify(current, null, 2);
-            this.textarea.value = this.content;
-            this.scanLines(this.content);
-            this.updateVirtualWindow();
-            Toast.show('Formatted JSON');
+            // Use worker for formatting to avoid freezing UI
+            if (this.worker) {
+                Toast.show('Formatting...');
+                this.worker.postMessage({ 
+                    text: this.textarea.value, 
+                    version: this.version,
+                    action: 'format' 
+                });
+            } else {
+                // Fallback
+                const current = JSON.parse(this.textarea.value);
+                this.content = JSON.stringify(current, null, 2);
+                this.textarea.value = this.content;
+                this.init(); // Re-scan
+                Toast.show('Formatted JSON');
+            }
         } catch (e) {
             Toast.show('Invalid JSON: ' + e.message);
         }
