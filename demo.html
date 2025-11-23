@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JSON Viewer Demo</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="src/styles.css">
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            height: 100vh; 
+            overflow: hidden; 
+            background: var(--bg-color, #ffffff);
+            color: var(--text-color, #333333);
+        }
+        #root { 
+            height: 100%; 
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module">
+        import { Viewer } from './src/ui/Viewer.js';
+        
+        const sampleData = {
+            "name": "JSON Viewer",
+            "version": "1.0",
+            "description": "Beautiful JSON viewer with multiple view modes",
+            "features": {
+                "views": ["Tree", "Grid", "Schema", "YAML", "Editor"],
+                "search": {
+                    "enabled": true,
+                    "regex": true,
+                    "deep": true
+                },
+                "themes": ["light", "dark"],
+                "performance": {
+                    "lazyLoading": true,
+                    "batchSize": 100,
+                    "maxNodes": 100000
+                }
+            },
+            "users": [
+                { "id": 1, "name": "Alice", "email": "alice@example.com", "active": true },
+                { "id": 2, "name": "Bob", "email": "bob@example.com", "active": false },
+                { "id": 3, "name": "Charlie", "email": "charlie@example.com", "active": true }
+            ],
+            "stats": {
+                "downloads": 12345,
+                "rating": 4.8,
+                "updated": "2025-11-23"
+            }
+        };
+        
+        const root = document.getElementById('root');
+        const viewer = new Viewer(root, sampleData, JSON.stringify(sampleData, null, 2));
+    </script>
+</body>
+</html>
