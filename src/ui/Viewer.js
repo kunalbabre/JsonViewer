@@ -263,6 +263,33 @@ export class Viewer {
             return;
         }
 
+        // Special handling for Raw View (Textarea)
+        if (this.currentView === 'raw') {
+            const textarea = this.contentContainer.querySelector('textarea');
+            if (textarea) {
+                const text = textarea.value;
+                const lowerText = text.toLowerCase();
+                let pos = 0;
+                while (pos < lowerText.length) {
+                    const index = lowerText.indexOf(searchLower, pos);
+                    if (index === -1) break;
+                    this.searchMatches.push({ start: index, end: index + searchLower.length });
+                    pos = index + searchLower.length;
+                }
+            }
+            
+            this.toolbar.updateMatchCounter(
+                this.searchMatches.length > 0 ? 1 : 0,
+                this.searchMatches.length
+            );
+            
+            this.currentMatchIndex = this.searchMatches.length > 0 ? 0 : -1;
+            if (this.currentMatchIndex >= 0) {
+                this.highlightCurrentMatch();
+            }
+            return;
+        }
+
         // Search in all text nodes
         const walker = document.createTreeWalker(
             this.contentContainer,
@@ -315,11 +342,40 @@ export class Viewer {
             return;
         }
 
+        const match = this.searchMatches[this.currentMatchIndex];
+
+        // Handle Raw View (Textarea selection)
+        if (this.currentView === 'raw' && match.start !== undefined) {
+            const textarea = this.contentContainer.querySelector('textarea');
+            if (textarea) {
+                textarea.focus();
+                textarea.setSelectionRange(match.start, match.end);
+                
+                // Calculate scroll position to center the match
+                // This is an approximation since we can't easily get pixel coordinates in a textarea
+                const fullText = textarea.value;
+                const textBefore = fullText.substring(0, match.start);
+                const lineCount = (textBefore.match(/\n/g) || []).length;
+                
+                // Assuming standard line height (approx 20px)
+                const lineHeight = 20; 
+                const scrollTarget = (lineCount * lineHeight) - (textarea.clientHeight / 2);
+                
+                textarea.scrollTop = Math.max(0, scrollTarget);
+            }
+            
+            // Update counter
+            this.toolbar.updateMatchCounter(this.currentMatchIndex + 1, this.searchMatches.length);
+            return;
+        }
+
         // Remove current highlight from all
         this.searchMatches.forEach(el => {
-            el.classList.remove('jv-highlight-current');
-            el.style.backgroundColor = '';
-            el.style.color = '';
+            if (el.classList) {
+                el.classList.remove('jv-highlight-current');
+                el.style.backgroundColor = '';
+                el.style.color = '';
+            }
         });
 
         // Highlight current match differently
