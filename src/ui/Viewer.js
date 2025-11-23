@@ -227,21 +227,27 @@ export class Viewer {
     }
 
     handleSearch(query) {
-        const lowerQuery = query.toLowerCase();
+        // Debounce search to prevent freezing on large files
+        if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer);
+        }
 
-        // Update tree view search query so new nodes get highlighted and expanded
-        if (this.treeView) {
-            this.treeView.searchQuery = lowerQuery;
-        }
-        if (this.schemaView && this.schemaView.treeView) {
-            this.schemaView.treeView.searchQuery = lowerQuery;
-        }
-        if (this.yamlView && this.yamlView.treeView) {
-            this.yamlView.treeView.searchQuery = lowerQuery;
-        }
-        
-        // Instant search - no debouncing
-        this.performSearch(query);
+        this.searchDebounceTimer = setTimeout(() => {
+            const lowerQuery = query.toLowerCase();
+
+            // Update tree view search query so new nodes get highlighted and expanded
+            if (this.treeView) {
+                this.treeView.searchQuery = lowerQuery;
+            }
+            if (this.schemaView && this.schemaView.treeView) {
+                this.schemaView.treeView.searchQuery = lowerQuery;
+            }
+            if (this.yamlView && this.yamlView.treeView) {
+                this.yamlView.treeView.searchQuery = lowerQuery;
+            }
+            
+            this.performSearch(query);
+        }, 300);
     }
 
     performSearch(query) {
@@ -305,27 +311,34 @@ export class Viewer {
                 let lastIndex = 0;
                 let pos = 0;
                 
-                // Build highlighted HTML
+                // Build highlighted HTML efficiently
                 const escapeHtml = (str) => str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+                
+                let html = '';
+                const matches = [];
+
+                // Limit matches for performance on extremely large files
+                const MAX_MATCHES = 5000;
 
                 while (pos < lowerText.length) {
                     const index = lowerText.indexOf(searchLower, pos);
                     if (index === -1) break;
                     
+                    if (matches.length >= MAX_MATCHES) {
+                        // Stop searching if too many matches
+                        break;
+                    }
+
                     // Add text before match
-                    backdrop.innerHTML += escapeHtml(text.substring(lastIndex, index));
+                    html += escapeHtml(text.substring(lastIndex, index));
                     
                     // Add match
                     const matchText = text.substring(index, index + searchLower.length);
-                    const span = document.createElement('span');
-                    span.className = 'jv-raw-highlight';
-                    span.textContent = matchText;
-                    backdrop.appendChild(span);
+                    html += `<span class="jv-raw-highlight">${escapeHtml(matchText)}</span>`;
                     
-                    this.searchMatches.push({ 
+                    matches.push({ 
                         start: index, 
-                        end: index + searchLower.length,
-                        element: span 
+                        end: index + searchLower.length
                     });
                     
                     lastIndex = index + searchLower.length;
@@ -333,7 +346,18 @@ export class Viewer {
                 }
                 
                 // Add remaining text
-                backdrop.innerHTML += escapeHtml(text.substring(lastIndex));
+                html += escapeHtml(text.substring(lastIndex));
+                
+                // Single DOM update
+                backdrop.innerHTML = html;
+                
+                // Map elements back to matches
+                const spans = backdrop.querySelectorAll('.jv-raw-highlight');
+                for (let i = 0; i < spans.length; i++) {
+                    if (matches[i]) matches[i].element = spans[i];
+                }
+                
+                this.searchMatches = matches;
             }
             
             this.toolbar.updateMatchCounter(
