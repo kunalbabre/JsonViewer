@@ -87,10 +87,11 @@ export class EditorView {
         this.code = document.createElement('code');
         this.code.className = 'jv-editor-code';
         // Force font style inline
-        this.code.style.fontFamily = "'Menlo', 'Monaco', 'Courier New', monospace";
+        this.code.style.fontFamily = fontStack;
         this.code.style.fontSize = "14px";
         this.code.style.lineHeight = "21px";
         this.code.style.letterSpacing = "0px";
+        this.code.style.fontWeight = "400";
         
         this.pre.appendChild(this.code);
 
@@ -104,10 +105,12 @@ export class EditorView {
         this.textarea.setAttribute('data-gramm', 'false'); // Disable Grammarly
         
         // Force font style inline to be absolutely sure
-        this.textarea.style.fontFamily = "'Menlo', 'Monaco', 'Courier New', monospace";
+        const fontStack = "'SF Mono', Monaco, Menlo, Consolas, 'Ubuntu Mono', 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace";
+        this.textarea.style.fontFamily = fontStack;
         this.textarea.style.fontSize = "14px";
         this.textarea.style.lineHeight = "21px";
         this.textarea.style.letterSpacing = "0px";
+        this.textarea.style.fontWeight = "400";
         
         // Event Listeners
         this.textarea.oninput = () => this.handleInput();
@@ -609,7 +612,17 @@ export class EditorView {
                 const current = JSON.parse(this.textarea.value);
                 this.content = JSON.stringify(current, null, 2);
                 this.textarea.value = this.content;
-                this.init(); // Re-scan
+                
+                // Attempt to restore worker if missing, but don't reset content
+                if (!this.worker) {
+                    this.initWorker();
+                }
+                
+                if (this.worker) {
+                    this.version++;
+                    this.worker.postMessage({ text: this.content, version: this.version });
+                }
+                
                 Toast.show('Formatted JSON');
             }
         } catch (e) {
