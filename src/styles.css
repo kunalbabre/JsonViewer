@@ -777,3 +777,84 @@ body.json-viewer-active {
 .hidden {
   display: none !important;
 }
+
+/* Modal for Snippets */
+.jv-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 2147483647; /* Max z-index */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.jv-modal-content {
+  background-color: var(--bg-color);
+  width: 90vw;
+  height: 90vh;
+  border-radius: 8px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.jv-modal-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background-color: var(--hover-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: all 0.2s;
+}
+
+.jv-modal-close:hover {
+  background-color: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+
+.jv-modal-viewer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Ensure modal inherits theme variables even if body doesn't have class */
+.jv-modal-content {
+  --bg-color: #ffffff;
+  --text-color: #1a1a1a;
+  --border-color: #e5e7eb;
+  --hover-bg: #f3f4f6;
+  --toolbar-bg: rgba(255, 255, 255, 0.9);
+}
+
+@media (prefers-color-scheme: dark) {
+  .jv-modal-content {
+    --bg-color: #0f172a;
+    --text-color: #e2e8f0;
+    --border-color: #334155;
+    --hover-bg: #1e293b;
+    --toolbar-bg: rgba(15, 23, 42, 0.9);
+  }
+}

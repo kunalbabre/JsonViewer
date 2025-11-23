@@ -42,8 +42,79 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage)
                     document.body.classList.remove('json-viewer-active');
                 }
             }
+        } else if (request.action === 'viewSnippet') {
+            try {
+                const text = request.content.trim();
+                // Basic validation
+                if (!text.startsWith('{') && !text.startsWith('[')) {
+                    alert('Selected text does not look like JSON');
+                    return;
+                }
+                
+                const json = JSON.parse(text);
+                showModal(json, text);
+            } catch (e) {
+                alert('Invalid JSON: ' + e.message);
+            }
         }
     });
+}
+
+function showModal(json, rawData) {
+    // Remove existing modal if any
+    const existing = document.getElementById('jv-modal-root');
+    if (existing) existing.remove();
+
+    // Create Modal Container
+    const modal = document.createElement('div');
+    modal.id = 'jv-modal-root';
+    modal.className = 'jv-modal-overlay';
+    
+    // Close on click outside
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.remove();
+    };
+
+    // Modal Content
+    const content = document.createElement('div');
+    content.className = 'jv-modal-content';
+    
+    // Close Button
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'jv-modal-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = () => modal.remove();
+    content.appendChild(closeBtn);
+
+    // Viewer Container
+    const viewerRoot = document.createElement('div');
+    viewerRoot.className = 'jv-modal-viewer';
+    content.appendChild(viewerRoot);
+
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+
+    // Initialize Viewer
+    // We need to ensure Viewer is loaded
+    if (typeof Viewer !== 'undefined') {
+        new Viewer(viewerRoot, json, rawData);
+    } else {
+        // Should be loaded by now, but just in case
+        (async () => {
+            const src = chrome.runtime.getURL('src/ui/Viewer.js');
+            const module = await import(src);
+            new module.Viewer(viewerRoot, json, rawData);
+        })();
+    }
+    
+    // Handle Escape
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            modal.remove();
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
 }
 
 (async function () {
@@ -65,6 +136,9 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage)
         }
 
         function init() {
+            // Expose Viewer globally for modal usage
+            window.Viewer = Viewer;
+
             console.log('JSON Viewer: Checking page...');
 
             // Detect raw JSON on any page (including file://)
