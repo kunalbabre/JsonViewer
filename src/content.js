@@ -96,14 +96,15 @@ function showModal(json, rawData) {
 
     // Initialize Viewer
     // We need to ensure Viewer is loaded
+    const options = { expandAll: true };
     if (typeof Viewer !== 'undefined') {
-        new Viewer(viewerRoot, json, rawData);
+        new Viewer(viewerRoot, json, rawData, options);
     } else {
         // Should be loaded by now, but just in case
         (async () => {
             const src = chrome.runtime.getURL('src/ui/Viewer.js');
             const module = await import(src);
-            new module.Viewer(viewerRoot, json, rawData);
+            new module.Viewer(viewerRoot, json, rawData, options);
         })();
     }
     

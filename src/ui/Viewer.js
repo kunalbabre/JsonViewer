@@ -7,10 +7,11 @@ import { EditorView } from './EditorView.js';
 import { Toast } from './Toast.js';
 
 export class Viewer {
-    constructor(root, data, rawData) {
+    constructor(root, data, rawData, options = {}) {
         this.root = root;
         this.data = data;
         this.rawData = rawData;
+        this.options = options;
         this.currentView = 'tree'; // tree, grid, raw, schema, yaml
         this.searchQuery = '';
         this.searchMatches = [];
@@ -101,7 +102,7 @@ export class Viewer {
                 treeContainer.className = 'jv-schema-tree';
                 treeContainer.style.flex = '1';
 
-                this.treeView = new TreeView(this.data, this.searchQuery);
+                this.treeView = new TreeView(this.data, this.searchQuery, 'json', this.options);
                 treeContainer.appendChild(this.treeView.element);
 
                 container.appendChild(treeContainer);

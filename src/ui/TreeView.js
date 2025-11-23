@@ -8,10 +8,11 @@ const LARGE_OBJECT_THRESHOLD = 50; // Objects with more items auto-collapse
 const DEEP_NESTING_THRESHOLD = 0; // Nodes deeper than this auto-collapse
 
 export class TreeView {
-    constructor(data, searchQuery = '', mode = 'json') {
+    constructor(data, searchQuery = '', mode = 'json', options = {}) {
         this.data = data;
         this._searchQuery = searchQuery.toLowerCase();
         this.mode = mode; // 'json' or 'yaml'
+        this.options = options;
         this.element = document.createElement('div');
         this.element.className = 'jv-tree';
         if (this.mode === 'yaml') {
@@ -203,6 +204,11 @@ export class TreeView {
             
             // Auto-expand if in search path
             if (this.expandedPaths && this.expandedPaths.has(currentPath)) {
+                shouldCollapse = false;
+            }
+
+            // Force expand if requested via options
+            if (this.options.expandAll) {
                 shouldCollapse = false;
             }
 
