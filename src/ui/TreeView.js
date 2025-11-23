@@ -13,12 +13,13 @@ export class TreeView {
         this._searchQuery = searchQuery.toLowerCase();
         this.mode = mode; // 'json' or 'yaml'
         this.options = options;
+        this.renderId = 0; // Track render sessions for cancellation
         this.element = document.createElement('div');
         this.element.className = 'jv-tree';
         if (this.mode === 'yaml') {
             this.element.classList.add('jv-yaml-mode');
         }
-        this.renderBatch(this.data, this.element, '', 0);
+        this.renderBatch(this.data, this.element, '', 0, this.renderId);
         
         if (this._searchQuery) {
             // Defer expansion to allow initial render to complete
@@ -123,7 +124,10 @@ export class TreeView {
     }
 
     // Batch rendering to prevent blocking the main thread
-    renderBatch(data, container, path, depth = 0) {
+    renderBatch(data, container, path, depth = 0, renderId = null) {
+        // If renderId is provided, check if it's still valid (only for root render)
+        if (renderId !== null && renderId !== this.renderId) return;
+
         if (typeof data === 'object' && data !== null) {
             const isArray = Array.isArray(data);
             const keys = Object.keys(data);
@@ -159,6 +163,9 @@ export class TreeView {
             };
 
             const renderChunk = () => {
+                // Check cancellation again inside the loop
+                if (renderId !== null && renderId !== this.renderId) return;
+
                 const end = Math.min(index + BATCH_SIZE, keys.length);
                 
                 for (; index < end; index++) {
@@ -305,7 +312,7 @@ export class TreeView {
             
             if (isInitiallyExpanded) {
                 // Render children for initially expanded nodes
-                this.renderBatch(value, children, currentPath, depth + 1);
+                this.renderBatch(value, children, currentPath, depth + 1, renderId);
             } else {
                 // Hide children for collapsed nodes
                 children.classList.add('hidden');
@@ -326,6 +333,7 @@ export class TreeView {
             
             if (isExpanding && childrenContainer.children.length === 0) {
                 // Lazy load: render children only when first expanded
+                // Note: We don't pass renderId here because this is a user interaction, not part of the initial batch
                 this.renderBatch(value, childrenContainer, currentPath, depth + 1);
             }
             
@@ -335,7 +343,7 @@ export class TreeView {
 
     render(data, container, path) {
         // Legacy method kept for compatibility, delegates to renderBatch
-        this.renderBatch(data, container, path, 0);
+        this.renderBatch(data, container, path, 0, this.renderId);
     }
 
     // Legacy method kept for backward compatibility - delegates to lazy version
@@ -437,26 +445,18 @@ export class TreeView {
     }
 
     expandAll() {
-        const togglers = this.element.querySelectorAll('.jv-toggler:not(.expanded)');
-        togglers.forEach(t => {
-            t.classList.add('expanded');
-            const node = t.closest('.jv-node');
-            if (node) {
-                const children = node.querySelector('.jv-children');
-                if (children) children.classList.remove('hidden');
-            }
-        });
+        this.options.expandAll = true;
+        this.reRender();
     }
 
     collapseAll() {
-        const togglers = this.element.querySelectorAll('.jv-toggler.expanded');
-        togglers.forEach(t => {
-            t.classList.remove('expanded');
-            const node = t.closest('.jv-node');
-            if (node) {
-                const children = node.querySelector('.jv-children');
-                if (children) children.classList.add('hidden');
-            }
-        });
+        this.options.expandAll = false;
+        this.reRender();
+    }
+
+    reRender() {
+        this.renderId++; // Cancel any ongoing renders
+        this.element.innerHTML = '';
+        this.renderBatch(this.data, this.element, '', 0, this.renderId);
     }
 }
