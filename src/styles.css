@@ -707,7 +707,7 @@ body.json-viewer-active {
   color: var(--text-color);
   font-size: 0.75rem;
   border-top: 1px solid var(--border-color);
-  text-align: right;
+  text-align: left;
   font-family: var(--font-family);
   user-select: none;
 }
