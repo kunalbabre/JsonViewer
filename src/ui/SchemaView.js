@@ -70,7 +70,8 @@ export class SchemaView {
                         }
                         
                         if (itemSchemas.length > 0) {
-                            schema.items = itemSchemas.reduce((acc, curr) => mergeSchemas(acc, curr), {});
+                            // Use first element as initial value to avoid merging with empty object
+                            schema.items = itemSchemas.reduce((acc, curr) => mergeSchemas(acc, curr));
                         } else {
                             schema.items = {};
                         }
@@ -93,34 +94,37 @@ export class SchemaView {
 
                 const typesA = Array.isArray(a.type) ? a.type : [a.type];
                 const typesB = Array.isArray(b.type) ? b.type : [b.type];
+                
                 const uniqueTypes = [...new Set([...typesA, ...typesB])];
-                const typesEqual = typesA.length === typesB.length && typesA.every(t => typesB.includes(t));
+                
+                const result = { type: uniqueTypes.length === 1 ? uniqueTypes[0] : uniqueTypes };
 
-                if (!typesEqual) {
-                    return { type: uniqueTypes.length === 1 ? uniqueTypes[0] : uniqueTypes };
-                }
-
-                const type = typesA[0];
-
-                if (type === 'object') {
-                    const merged = { type: 'object', properties: { ...a.properties } };
-                    if (b.properties) {
-                        Object.keys(b.properties).forEach(key => {
-                            if (merged.properties[key]) {
-                                merged.properties[key] = mergeSchemas(merged.properties[key], b.properties[key]);
+                // If object type is present, merge properties
+                if (uniqueTypes.includes('object')) {
+                    const propsA = a.properties || {};
+                    const propsB = b.properties || {};
+                    const allKeys = [...new Set([...Object.keys(propsA), ...Object.keys(propsB)])];
+                    
+                    if (allKeys.length > 0) {
+                        result.properties = {};
+                        allKeys.forEach(key => {
+                            if (propsA[key] && propsB[key]) {
+                                result.properties[key] = mergeSchemas(propsA[key], propsB[key]);
                             } else {
-                                merged.properties[key] = b.properties[key];
+                                result.properties[key] = propsA[key] || propsB[key];
                             }
                         });
                     }
-                    return merged;
                 }
 
-                if (type === 'array') {
-                    return { type: 'array', items: mergeSchemas(a.items, b.items) };
+                // If array type is present, merge items
+                if (uniqueTypes.includes('array')) {
+                    if (a.items || b.items) {
+                        result.items = mergeSchemas(a.items, b.items);
+                    }
                 }
 
-                return a;
+                return result;
             }
 
             function getType(value) {
