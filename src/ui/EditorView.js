@@ -209,8 +209,10 @@ export class EditorView {
         
         this.code.innerHTML = highlighted;
         
-        // Position the code block
-        const topOffset = renderStartLine * this.lineHeight;
+        // Position the code block relative to the viewport
+        // We subtract scrollTop because the 'pre' container is fixed to the viewport,
+        // so we need to shift the content up to match the scroll position.
+        const topOffset = (renderStartLine * this.lineHeight) - scrollTop;
         this.code.style.transform = `translateY(${topOffset}px)`;
     }
 
