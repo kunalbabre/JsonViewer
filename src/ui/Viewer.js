@@ -270,6 +270,18 @@ export class Viewer {
                 el.style.color = '';
                 el.classList.remove('jv-highlight', 'jv-highlight-current');
             });
+            
+            // Clear Editor View highlights
+            if (this.editorView) {
+                this.editorView.setSearchMatches([]);
+            }
+
+            // Clear Raw View highlights
+            const backdrop = this.contentContainer.querySelector('.jv-raw-backdrop');
+            if (backdrop) {
+                backdrop.innerHTML = '';
+            }
+
             this.searchMatches = [];
             this.currentMatchIndex = -1;
             this.toolbar.updateMatchCounter(0, 0);
