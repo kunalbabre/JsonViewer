@@ -399,8 +399,12 @@ function scanForJsonCodeBlocks() {
                                 
                                 worker.postMessage(text);
                             } catch (e) {
-                                // Fallback to main thread if Worker fails
-                                resolve(JSON.parse(text));
+                                // Fallback to main thread if Worker creation fails
+                                try {
+                                    resolve(JSON.parse(text));
+                                } catch (parseError) {
+                                    reject(parseError);
+                                }
                             }
                         } else {
                             // Use main thread for smaller files or if Worker not available
