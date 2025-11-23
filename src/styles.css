@@ -778,6 +778,44 @@ body.json-viewer-active {
   display: none !important;
 }
 
+/* Snippet Button */
+.jv-snippet-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 10;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s;
+  color: var(--text-color);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Show on hover of the code block */
+pre:hover .jv-snippet-btn,
+code:hover .jv-snippet-btn {
+  opacity: 1;
+}
+
+.jv-snippet-btn:hover {
+  background-color: var(--hover-bg);
+  color: var(--key-color);
+  border-color: var(--key-color);
+  transform: scale(1.05);
+}
+
+/* Ensure relative positioning for code blocks so absolute button works */
+.jv-relative {
+  position: relative !important;
+}
+
 /* Modal for Snippets */
 .jv-modal-overlay {
   position: fixed;

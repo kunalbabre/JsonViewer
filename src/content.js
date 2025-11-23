@@ -117,6 +117,77 @@ function showModal(json, rawData) {
     document.addEventListener('keydown', escHandler);
 }
 
+    document.addEventListener('keydown', escHandler);
+}
+
+// Helper to check if text is valid JSON
+function isValidJson(text) {
+    if (!text || text.length < 2) return false;
+    text = text.trim();
+    if (!((text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']')))) return false;
+    try {
+        JSON.parse(text);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function injectViewButton(element, jsonText) {
+    // Ensure element is positioned so we can absolute position the button
+    const style = window.getComputedStyle(element);
+    if (style.position === 'static') {
+        element.classList.add('jv-relative');
+    }
+
+    const btn = document.createElement('button');
+    btn.className = 'jv-snippet-btn';
+    btn.title = 'View in JSON Viewer';
+    // Use the tree icon
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><line x1="10" y1="6.5" x2="14" y2="6.5"/><path d="M6.5 10v8h7.5"/></svg>';
+    
+    btn.onclick = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        try {
+            const json = JSON.parse(jsonText);
+            showModal(json, jsonText);
+        } catch (e) {
+            console.error('Failed to parse JSON', e);
+        }
+    };
+
+    element.appendChild(btn);
+}
+
+function scanForJsonCodeBlocks() {
+    // 1. Look for PRE elements
+    document.querySelectorAll('pre').forEach(pre => {
+        if (pre.dataset.jvProcessed) return;
+        if (pre.closest('#json-viewer-root') || pre.closest('#jv-modal-root')) return;
+        
+        const text = pre.textContent;
+        if (isValidJson(text)) {
+            injectViewButton(pre, text);
+            pre.dataset.jvProcessed = 'true';
+            // Mark children code blocks as processed too so we don't double up
+            pre.querySelectorAll('code').forEach(c => c.dataset.jvProcessed = 'true');
+        }
+    });
+
+    // 2. Look for CODE elements (that weren't handled by PRE)
+    document.querySelectorAll('code').forEach(code => {
+        if (code.dataset.jvProcessed) return;
+        if (code.closest('#json-viewer-root') || code.closest('#jv-modal-root')) return;
+
+        const text = code.textContent;
+        if (isValidJson(text)) {
+            injectViewButton(code, text);
+            code.dataset.jvProcessed = 'true';
+        }
+    });
+}
+
 (async function () {
     try {
         let Viewer;
@@ -140,6 +211,18 @@ function showModal(json, rawData) {
             window.Viewer = Viewer;
 
             console.log('JSON Viewer: Checking page...');
+
+            // Scan for code blocks
+            setTimeout(scanForJsonCodeBlocks, 1000);
+            // Optional: Observe for dynamic content
+            const observer = new MutationObserver((mutations) => {
+                // Simple debounce
+                if (window.jvScanTimeout) clearTimeout(window.jvScanTimeout);
+                window.jvScanTimeout = setTimeout(scanForJsonCodeBlocks, 1000);
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+
+            // Detect raw JSON on any page (including file://)
 
             // Detect raw JSON on any page (including file://)
             let content = '';
