@@ -782,7 +782,8 @@ body.json-viewer-active {
 .jv-snippet-btn {
   position: absolute;
   top: 0.5rem;
-  right: 0.5rem;
+  right: auto;
+  left: 0.5rem; /* Moved to left for better accessibility on wide screens */
   z-index: 10;
   background-color: var(--bg-color);
   border: 1px solid var(--border-color);
