@@ -1,5 +1,5 @@
-// Performance tuning constants
-const GRID_BATCH_SIZE = 50; // Number of table rows to render per batch
+// Performance tuning constants - optimized for 50MB+ files
+const GRID_BATCH_SIZE = 100; // Number of table rows to render per batch (increased for faster loading)
 const COLUMN_SAMPLE_SIZE = 100; // Number of items to sample for column detection
 
 export class GridView {

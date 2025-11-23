@@ -19,8 +19,8 @@ function isJSON(text) {
     }
 }
 
-// Performance tuning constant
-const LARGE_FILE_THRESHOLD = 1048576; // 1 MB threshold for showing loading indicator
+// Performance tuning constant - optimized for 50MB+ files
+const LARGE_FILE_THRESHOLD = 5242880; // 5 MB threshold for showing loading indicator (increased from 1MB)
 
 // Listen for toggle command from background script
 if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
