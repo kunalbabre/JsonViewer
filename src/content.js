@@ -117,9 +117,6 @@ function showModal(json, rawData) {
     document.addEventListener('keydown', escHandler);
 }
 
-    document.addEventListener('keydown', escHandler);
-}
-
 // Helper to check if text is valid JSON
 function isValidJson(text) {
     if (!text || text.length < 2) return false;
