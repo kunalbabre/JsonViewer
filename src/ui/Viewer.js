@@ -12,7 +12,7 @@ export class Viewer {
         this.data = data;
         this.rawData = rawData;
         this.options = options;
-        this.currentView = options.isInvalid ? 'editor' : 'tree'; // Default to editor for invalid JSON
+        this.currentView = options.initialView || (options.isInvalid ? 'editor' : 'tree'); // Default to editor for invalid JSON
         this.searchQuery = '';
         this.searchMatches = [];
         this.currentMatchIndex = -1;
@@ -224,6 +224,12 @@ export class Viewer {
 
     switchView(view) {
         this.currentView = view;
+        
+        // Notify parent
+        if (this.options.onViewChange) {
+            this.options.onViewChange(view);
+        }
+
         // Update toolbar actions
         this.renderToolbar();
         // Update content visibility

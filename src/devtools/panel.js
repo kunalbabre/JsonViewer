@@ -1,6 +1,7 @@
 import { Viewer } from '../ui/Viewer.js';
 
 let currentViewer = null;
+let lastSelectedView = null;
 
 // Initialize
 setupTheme();
@@ -235,7 +236,16 @@ function renderViewer(json, rawData, options = {}) {
     const root = document.getElementById('viewer-root');
     root.innerHTML = ''; // Clear placeholder
     
-    currentViewer = new Viewer(root, json, rawData, options);
+    // Merge options with sticky view preference
+    const viewerOptions = {
+        ...options,
+        initialView: lastSelectedView || options.initialView,
+        onViewChange: (view) => {
+            lastSelectedView = view;
+        }
+    };
+
+    currentViewer = new Viewer(root, json, rawData, viewerOptions);
 }
 
 // Listen for context menu snippet
