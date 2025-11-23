@@ -9,21 +9,9 @@ export class Toolbar {
         const topBar = document.createElement('div');
         topBar.className = 'jv-top-bar';
 
-        // Left: Logo & View Switchers
+        // Left: View Switchers
         const leftGroup = document.createElement('div');
         leftGroup.className = 'jv-nav-group';
-
-        const logo = document.createElement('div');
-        logo.className = 'jv-logo';
-        logo.textContent = 'JSON Viewer';
-        leftGroup.appendChild(logo);
-
-        // Separator
-        const sep = document.createElement('div');
-        sep.className = 'jv-separator';
-        sep.style.height = '1.5rem';
-        sep.style.margin = '0 1rem';
-        leftGroup.appendChild(sep);
         
         const views = ['tree', 'editor', 'schema', 'yaml', 'raw'];
         this.viewButtons = {};
@@ -39,9 +27,14 @@ export class Toolbar {
         });
         topBar.appendChild(leftGroup);
 
-        // Right: Theme
+        // Right: Logo & Theme
         const rightGroup = document.createElement('div');
         rightGroup.className = 'jv-meta-group';
+
+        const logo = document.createElement('div');
+        logo.className = 'jv-logo';
+        logo.textContent = 'JSON Viewer';
+        rightGroup.appendChild(logo);
 
         const themeBtn = this.createButton(Icons.theme, 'Toggle Theme', onThemeToggle);
         themeBtn.classList.add('jv-icon-only');
