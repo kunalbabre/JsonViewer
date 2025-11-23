@@ -291,6 +291,7 @@ export class Viewer {
 
         // Special handling for Raw View (Textarea)
         if (this.currentView === 'raw') {
+            // ... (existing raw view logic) ...
             const textarea = currentViewElement ? currentViewElement.querySelector('textarea') : null;
             const backdrop = currentViewElement ? currentViewElement.querySelector('.jv-raw-backdrop') : null;
             
@@ -305,7 +306,6 @@ export class Viewer {
                 let pos = 0;
                 
                 // Build highlighted HTML
-                // We need to escape HTML in the text to prevent injection
                 const escapeHtml = (str) => str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 
                 while (pos < lowerText.length) {
@@ -336,6 +336,33 @@ export class Viewer {
                 backdrop.innerHTML += escapeHtml(text.substring(lastIndex));
             }
             
+            this.toolbar.updateMatchCounter(
+                this.searchMatches.length > 0 ? 1 : 0,
+                this.searchMatches.length
+            );
+            
+            this.currentMatchIndex = this.searchMatches.length > 0 ? 0 : -1;
+            if (this.currentMatchIndex >= 0) {
+                this.highlightCurrentMatch();
+            }
+            return;
+        }
+
+        // Special handling for Editor View
+        if (this.currentView === 'editor' && this.editorView) {
+            const text = this.editorView.content;
+            const lowerText = text.toLowerCase();
+            let pos = 0;
+            
+            while (pos < lowerText.length) {
+                const index = lowerText.indexOf(searchLower, pos);
+                if (index === -1) break;
+                this.searchMatches.push({ start: index, end: index + searchLower.length });
+                pos = index + searchLower.length;
+            }
+
+            this.editorView.setSearchMatches(this.searchMatches);
+
             this.toolbar.updateMatchCounter(
                 this.searchMatches.length > 0 ? 1 : 0,
                 this.searchMatches.length
@@ -404,6 +431,42 @@ export class Viewer {
         }
 
         const match = this.searchMatches[this.currentMatchIndex];
+
+        // Handle Editor View
+        if (this.currentView === 'editor' && this.editorView) {
+            // Mark current match
+            this.searchMatches.forEach((m, i) => m.isCurrent = (i === this.currentMatchIndex));
+            this.editorView.setSearchMatches(this.searchMatches);
+
+            // Scroll to match
+            // We need to find the line number
+            const offsets = this.editorView.lineOffsets;
+            if (offsets) {
+                // Binary search for line
+                let low = 0, high = offsets.length - 1;
+                let line = 0;
+                while (low <= high) {
+                    const mid = Math.floor((low + high) / 2);
+                    if (offsets[mid] <= match.start) {
+                        line = mid;
+                        low = mid + 1;
+                    } else {
+                        high = mid - 1;
+                    }
+                }
+                
+                // Scroll textarea
+                const textarea = this.editorView.textarea;
+                const lineHeight = this.editorView.lineHeight;
+                const containerHeight = textarea.clientHeight;
+                
+                const scrollTarget = (line * lineHeight) - (containerHeight / 2);
+                textarea.scrollTop = Math.max(0, scrollTarget);
+            }
+            
+            this.toolbar.updateMatchCounter(this.currentMatchIndex + 1, this.searchMatches.length);
+            return;
+        }
 
         // Handle Raw View (Backdrop highlighting)
         if (this.currentView === 'raw' && match.element) {

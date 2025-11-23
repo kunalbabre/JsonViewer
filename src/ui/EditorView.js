@@ -77,6 +77,18 @@ export class EditorView {
         this.code.style.letterSpacing = "0px";
         this.code.style.fontWeight = "400";
         
+        // Search Highlight Layer (behind code)
+        this.searchLayer = document.createElement('div');
+        this.searchLayer.className = 'jv-editor-search-layer';
+        this.searchLayer.style.position = 'absolute';
+        this.searchLayer.style.top = '0';
+        this.searchLayer.style.left = '0';
+        this.searchLayer.style.pointerEvents = 'none';
+        this.searchLayer.style.fontFamily = fontStack;
+        this.searchLayer.style.fontSize = "14px";
+        this.searchLayer.style.lineHeight = "21px";
+        
+        this.pre.appendChild(this.searchLayer);
         this.pre.appendChild(this.code);
 
         this.textarea = document.createElement('textarea');
@@ -457,6 +469,11 @@ export class EditorView {
         }
     }
 
+    setSearchMatches(matches) {
+        this.searchMatches = matches || [];
+        this.updateVirtualWindow();
+    }
+
     updateVirtualWindow(liveContent = null) {
         if (!this.lineHeight || !this.lineOffsets || this.lineCount === 0) return;
 
@@ -494,6 +511,9 @@ export class EditorView {
         
         // Highlight only the visible text
         this.code.innerHTML = this.highlight(visibleText);
+
+        // Render Search Highlights
+        this.renderSearchHighlights(renderStartLine, renderEndLine, startIndex);
 
         // Render Gutter
         let gutterHtml = '';
@@ -553,12 +573,76 @@ export class EditorView {
         
         // Use translate for both X and Y to ensure perfect sync
         this.code.style.transform = `translate(${leftOffset}px, ${topOffset}px)`;
+        this.searchLayer.style.transform = `translate(${leftOffset}px, ${topOffset}px)`;
         this.gutterContent.style.transform = `translateY(${topOffset}px)`;
         
         // Update active line position as well since scrollTop changed
         if (this.currentActiveLine !== undefined) {
              const activeTop = (this.currentActiveLine * this.lineHeight) - scrollTop;
              this.activeLine.style.transform = `translateY(${activeTop}px)`;
+        }
+    }
+
+    renderSearchHighlights(startLine, endLine, startOffset) {
+        this.searchLayer.innerHTML = '';
+        if (!this.searchMatches || this.searchMatches.length === 0) return;
+
+        // Binary search for the first match that might be visible
+        let low = 0, high = this.searchMatches.length - 1;
+        let firstMatchIndex = -1;
+
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            if (this.searchMatches[mid].end > startOffset) {
+                firstMatchIndex = mid;
+                high = mid - 1;
+            } else {
+                low = mid + 1;
+            }
+        }
+
+        if (firstMatchIndex === -1) return;
+
+        // Iterate through matches until we go past the visible area
+        const endOffset = (endLine < this.lineOffsets.length) ? this.lineOffsets[endLine] : this.content.length;
+
+        for (let i = firstMatchIndex; i < this.searchMatches.length; i++) {
+            const match = this.searchMatches[i];
+            if (match.start >= endOffset) break;
+
+            // Calculate position
+            // We need to find which line this match belongs to
+            // Since we are iterating matches, and we know the range of lines,
+            // we can find the line for each match.
+            // Optimization: Keep track of current line index
+            
+            let lineIdx = startLine;
+            // Find line that contains match.start
+            // Since matches are ordered, and lines are ordered, we can just advance lineIdx
+            while (lineIdx < endLine && (lineIdx + 1 < this.lineOffsets.length ? this.lineOffsets[lineIdx + 1] : Infinity) <= match.start) {
+                lineIdx++;
+            }
+
+            if (lineIdx >= endLine) continue;
+
+            const lineStart = this.lineOffsets[lineIdx];
+            const col = match.start - lineStart;
+            const row = lineIdx - startLine; // Relative to the transformed layer
+
+            const el = document.createElement('div');
+            el.className = 'jv-search-highlight';
+            if (match.isCurrent) el.classList.add('current');
+            
+            el.style.position = 'absolute';
+            el.style.left = `calc(1rem + ${col}ch)`; // 1rem padding
+            el.style.top = `${row * this.lineHeight}px`;
+            el.style.width = `${match.end - match.start}ch`;
+            el.style.height = `${this.lineHeight}px`;
+            el.style.backgroundColor = match.isCurrent ? '#f59e0b' : '#fef08a';
+            el.style.opacity = '0.5';
+            el.style.zIndex = '-1'; // Behind text
+
+            this.searchLayer.appendChild(el);
         }
     }
 
