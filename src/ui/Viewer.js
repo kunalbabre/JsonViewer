@@ -206,6 +206,7 @@ export class Viewer {
             
         } else if (this.currentView === 'yaml') {
             const yaml = new YamlView(this.data, this.searchQuery);
+            this.yamlView = yaml; // Store reference
             this.contentContainer.appendChild(yaml.element);
             
             // Cache the view
@@ -225,9 +226,17 @@ export class Viewer {
     }
 
     handleSearch(query) {
-        // Update tree view search query so new nodes get highlighted
+        const lowerQuery = query.toLowerCase();
+
+        // Update tree view search query so new nodes get highlighted and expanded
         if (this.treeView) {
-            this.treeView.searchQuery = query.toLowerCase();
+            this.treeView.searchQuery = lowerQuery;
+        }
+        if (this.schemaView && this.schemaView.treeView) {
+            this.schemaView.treeView.searchQuery = lowerQuery;
+        }
+        if (this.yamlView && this.yamlView.treeView) {
+            this.yamlView.treeView.searchQuery = lowerQuery;
         }
         
         // Instant search - no debouncing

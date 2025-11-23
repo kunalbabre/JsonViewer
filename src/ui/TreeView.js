@@ -10,7 +10,7 @@ const DEEP_NESTING_THRESHOLD = 0; // Nodes deeper than this auto-collapse
 export class TreeView {
     constructor(data, searchQuery = '', mode = 'json') {
         this.data = data;
-        this.searchQuery = searchQuery.toLowerCase();
+        this._searchQuery = searchQuery.toLowerCase();
         this.mode = mode; // 'json' or 'yaml'
         this.element = document.createElement('div');
         this.element.className = 'jv-tree';
@@ -18,6 +18,64 @@ export class TreeView {
             this.element.classList.add('jv-yaml-mode');
         }
         this.renderBatch(this.data, this.element, '', 0);
+        
+        if (this._searchQuery) {
+            // Defer expansion to allow initial render to complete
+            setTimeout(() => this.expandMatches(this._searchQuery), 0);
+        }
+    }
+
+    set searchQuery(query) {
+        this._searchQuery = query;
+        this.expandMatches(query);
+    }
+
+    get searchQuery() {
+        return this._searchQuery;
+    }
+
+    expandMatches(query) {
+        if (!query) return;
+        
+        this.expandedPaths = new Set();
+        
+        const traverse = (obj, currentPath) => {
+            if (typeof obj !== 'object' || obj === null) return false;
+            
+            let hasMatch = false;
+            const keys = Object.keys(obj);
+            
+            for (const key of keys) {
+                const value = obj[key];
+                const isArray = Array.isArray(obj);
+                const path = currentPath ? (isArray ? `${currentPath}[${key}]` : `${currentPath}.${key}`) : key;
+                
+                let matchFound = false;
+                if (key.toLowerCase().includes(query)) matchFound = true;
+                if (typeof value !== 'object' && String(value).toLowerCase().includes(query)) matchFound = true;
+                
+                const childHasMatch = traverse(value, path);
+                
+                if (matchFound || childHasMatch) {
+                    hasMatch = true;
+                    this.expandedPaths.add(path);
+                }
+            }
+            return hasMatch;
+        };
+        
+        traverse(this.data, '');
+        
+        // Expand visible nodes that are on the path
+        const nodes = this.element.querySelectorAll('.jv-node');
+        nodes.forEach(node => {
+            if (this.expandedPaths.has(node.dataset.path)) {
+                const toggler = node.querySelector('.jv-toggler');
+                if (toggler && !toggler.classList.contains('expanded')) {
+                    toggler.click();
+                }
+            }
+        });
     }
 
     // Batch rendering to prevent blocking the main thread
@@ -85,6 +143,8 @@ export class TreeView {
     createNode(key, value, currentPath, isArray, depth) {
         const node = document.createElement('div');
         node.className = 'jv-node';
+        node.dataset.key = key; // For programmatic access
+        node.dataset.path = currentPath; // For search expansion
 
         const header = document.createElement('div');
         header.className = 'jv-node-header';
@@ -96,7 +156,13 @@ export class TreeView {
         if (isExpandable) {
             const toggler = document.createElement('span');
             // Start collapsed for deep nesting or large arrays/objects
-            const shouldCollapse = depth > DEEP_NESTING_THRESHOLD || valueKeys.length > LARGE_OBJECT_THRESHOLD;
+            let shouldCollapse = depth > DEEP_NESTING_THRESHOLD || valueKeys.length > LARGE_OBJECT_THRESHOLD;
+            
+            // Auto-expand if in search path
+            if (this.expandedPaths && this.expandedPaths.has(currentPath)) {
+                shouldCollapse = false;
+            }
+
             toggler.className = shouldCollapse ? 'jv-toggler' : 'jv-toggler expanded';
             toggler.textContent = '▶';
             toggler.onclick = (e) => {
@@ -132,7 +198,7 @@ export class TreeView {
         }
 
         // Highlight search match in key
-        if (this.searchQuery && key.toLowerCase().includes(this.searchQuery)) {
+        if (this._searchQuery && key.toLowerCase().includes(this._searchQuery)) {
             keySpan.classList.add('jv-highlight');
         }
 
