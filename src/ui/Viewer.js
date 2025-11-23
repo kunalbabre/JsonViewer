@@ -7,11 +7,12 @@ import { EditorView } from './EditorView.js';
 import { Toast } from './Toast.js';
 
 export class Viewer {
-    constructor(root, data, rawData) {
+    constructor(root, data, rawData, options = {}) {
         this.root = root;
         this.data = data;
         this.rawData = rawData;
-        this.currentView = 'tree'; // tree, grid, raw, schema, yaml
+        this.options = options;
+        this.currentView = options.initialView || (options.isInvalid ? 'editor' : 'tree'); // Default to editor for invalid JSON
         this.searchQuery = '';
         this.searchMatches = [];
         this.currentMatchIndex = -1;
@@ -64,7 +65,8 @@ export class Viewer {
             onFormat: this.currentView === 'editor' ? () => this.editorView?.format() : null,
             onApply: this.currentView === 'editor' ? () => this.editorView?.applyChanges() : null,
             currentView: this.currentView,
-            searchQuery: this.searchQuery
+            searchQuery: this.searchQuery,
+            disabledViews: this.options.isInvalid ? ['tree', 'schema', 'yaml', 'grid'] : []
         });
         this.toolbarContainer.appendChild(this.toolbar.element);
     }
@@ -101,7 +103,7 @@ export class Viewer {
                 treeContainer.className = 'jv-schema-tree';
                 treeContainer.style.flex = '1';
 
-                this.treeView = new TreeView(this.data, this.searchQuery);
+                this.treeView = new TreeView(this.data, this.searchQuery, 'json', this.options);
                 treeContainer.appendChild(this.treeView.element);
 
                 container.appendChild(treeContainer);
@@ -115,16 +117,23 @@ export class Viewer {
                 }
 
             } else if (this.currentView === 'editor') {
-                const editor = new EditorView(this.data, (newData) => {
+                const dataToUse = this.options.isInvalid ? this.rawData : this.data;
+                const editor = new EditorView(dataToUse, (newData) => {
                     this.data = newData;
                     this.rawData = JSON.stringify(newData, null, 2);
+                    
+                    if (this.options.isInvalid) {
+                        this.options.isInvalid = false;
+                        this.renderToolbar();
+                    }
+
                     // Clear cache to force re-render of other views with new data
                     // We need to remove elements from DOM too
                     this.viewCache = {};
                     this.contentContainer.innerHTML = '';
                     // Re-render current view
                     this.renderContent();
-                });
+                }, { isRaw: this.options.isInvalid });
                 this.editorView = editor;
                 viewElement = editor.element;
                 viewElement._editorView = editor; // Store reference
@@ -215,6 +224,12 @@ export class Viewer {
 
     switchView(view) {
         this.currentView = view;
+        
+        // Notify parent
+        if (this.options.onViewChange) {
+            this.options.onViewChange(view);
+        }
+
         // Update toolbar actions
         this.renderToolbar();
         // Update content visibility
@@ -261,6 +276,18 @@ export class Viewer {
                 el.style.color = '';
                 el.classList.remove('jv-highlight', 'jv-highlight-current');
             });
+            
+            // Clear Editor View highlights
+            if (this.editorView) {
+                this.editorView.setSearchMatches([]);
+            }
+
+            // Clear Raw View highlights
+            const backdrop = this.contentContainer.querySelector('.jv-raw-backdrop');
+            if (backdrop) {
+                backdrop.innerHTML = '';
+            }
+
             this.searchMatches = [];
             this.currentMatchIndex = -1;
             this.toolbar.updateMatchCounter(0, 0);

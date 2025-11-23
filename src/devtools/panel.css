@@ -1,0 +1,172 @@
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    overflow: hidden;
+}
+
+.jv-devtools-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+.jv-devtools-sidebar {
+    width: 250px;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    background-color: var(--hover-bg);
+    flex-shrink: 0;
+    transition: width 0.2s;
+}
+
+@media (max-width: 600px) {
+    .jv-devtools-sidebar {
+        width: 180px;
+    }
+}
+
+@media (max-width: 400px) {
+    .jv-devtools-sidebar {
+        width: 140px;
+    }
+    .jv-request-method {
+        font-size: 10px;
+        min-width: 25px;
+    }
+}
+
+.jv-devtools-header {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background-color: var(--hover-bg);
+}
+
+.jv-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--null-color);
+}
+
+.jv-request-search {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: 12px;
+    box-sizing: border-box;
+}
+
+.jv-request-search:focus {
+    outline: none;
+    border-color: var(--key-color);
+}
+
+.jv-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--null-color);
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.jv-icon-btn:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: var(--text-color);
+}
+
+body.dark-theme .jv-icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.jv-request-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.jv-request-item {
+    padding: 8px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.jv-request-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.jv-request-item.active {
+    background-color: var(--key-color);
+    color: white;
+}
+
+.jv-request-item.active .jv-request-url,
+.jv-request-item.active .jv-request-method,
+.jv-request-item.active .jv-request-status {
+    color: white;
+}
+
+.jv-request-method {
+    font-weight: bold;
+    margin-right: 5px;
+    min-width: 30px;
+}
+
+.jv-request-url {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.jv-request-status {
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+.jv-devtools-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.jv-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--null-color);
+    font-size: 14px;
+}
+
+/* Dark theme overrides for sidebar */
+body.dark-theme .jv-devtools-sidebar {
+    background-color: #1e293b;
+}
+
+body.dark-theme .jv-request-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}

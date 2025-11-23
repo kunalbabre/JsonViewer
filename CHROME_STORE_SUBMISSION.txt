@@ -1,0 +1,91 @@
+================================================================================
+CHROME WEB STORE SUBMISSION DETAILS
+================================================================================
+
+--------------------------------------------------------------------------------
+1. STORE LISTING
+--------------------------------------------------------------------------------
+
+Title:
+JSON Viewer
+
+Summary:
+Fast & beautiful JSON viewer with Tree, Grid, Editor, YAML views, and DevTools integration. Handles large files instantly.
+
+Description:
+Transform your raw JSON into a beautiful, interactive, and readable format. JSON Viewer is a powerful developer tool designed for performance and usability, allowing you to visualize, edit, and analyze JSON data directly in your browser.
+
+High Performance
+We built this extension to handle massive files without freezing.
+* Instant Loading: Opens 5MB+ JSON files in milliseconds.
+* Smart Rendering: Uses lazy loading and virtualization to render only what you see.
+* Low Memory Usage: Optimized to use up to 90% less memory than standard viewers.
+
+Multiple Viewing Modes
+* Tree View: Navigate nested JSON with collapsible nodes and syntax highlighting.
+* Grid View: Perfect for arrays—view your data in a clean, sortable table format.
+* Editor View: Edit JSON directly with syntax validation and formatting. Fix invalid JSON on the fly.
+* YAML View: Instantly convert and view your JSON as YAML.
+* Schema View: Visualize the structure and types of your JSON data.
+
+Powerful Tools
+* DevTools Panel: Inspect network requests and JSON responses in a dedicated "JSON Viewer" tab in Chrome DevTools.
+* Smart Search: Deep search through keys and values with regex support.
+* Theme Support: Automatically switches between Light and Dark modes based on your system preference.
+* Utilities: One-click Copy, Save to File, and Format/Minify options.
+
+Privacy First
+JSON Viewer works entirely offline. Your data is processed locally in your browser and is never sent to any server.
+
+--------------------------------------------------------------------------------
+2. PRIVACY - SINGLE PURPOSE
+--------------------------------------------------------------------------------
+
+Single Purpose Description:
+The single purpose of this extension is to format and visualize JSON data. It automatically detects JSON content in the browser and transforms it into interactive, readable views (Tree, Grid, Editor, YAML) to help users analyze and debug data structures efficiently.
+
+--------------------------------------------------------------------------------
+3. PERMISSION JUSTIFICATIONS
+--------------------------------------------------------------------------------
+
+Host Permission Justification (<all_urls>, file://*/*):
+This extension requires access to <all_urls> and file://*/* because its primary purpose is to automatically detect and format JSON data served from any source.
+
+When a user navigates to a URL that returns JSON (e.g., an API endpoint, a configuration file, or a local file), the extension needs to:
+1. Read the page content to verify it is valid JSON.
+2. Inject the viewer interface (content scripts and styles) to transform the raw text into a user-friendly, interactive tree/grid view.
+
+Since JSON data can be hosted on any domain or opened from a local disk, restricting these permissions would break the extension's core functionality for most use cases.
+
+Storage Permission Justification:
+The storage permission is required to support the "View JSON Snippet" context menu feature.
+
+When a user selects text on a webpage and chooses "View JSON Snippet" from the right-click menu, the extension temporarily saves this selected text to chrome.storage.local. The viewer page then retrieves this data from storage to render the visualization.
+
+Why is this necessary?
+We use storage instead of passing data via URL parameters because selected JSON snippets can be very large, often exceeding the character limits of URLs. This ensures that users can view large JSON structures without errors or truncation.
+
+--------------------------------------------------------------------------------
+4. TESTING INSTRUCTIONS
+--------------------------------------------------------------------------------
+
+1. Test Automatic JSON Detection:
+Open any URL that returns raw JSON data (for example, https://jsonplaceholder.typicode.com/users). The extension should automatically detect the JSON content and render it in the "Tree" view. Try switching between the different views (Tree, Grid, Editor, YAML) using the buttons in the top toolbar.
+
+2. Test Local File Access:
+Create a local file named "test.json" on your computer with some valid JSON content. Drag and drop this file into a Chrome browser tab. The extension should automatically format the local file. Note: You must ensure "Allow access to file URLs" is enabled for this extension in chrome://extensions for this test to work.
+
+3. Test "View JSON Snippet" (Context Menu):
+Navigate to any website that displays text. Select a piece of text that is valid JSON (for example: {"test": 123}). Right-click on the selected text and choose "View JSON Snippet" from the context menu. A new tab should open displaying the selected text formatted as JSON.
+
+4. Test DevTools Integration:
+Open Chrome DevTools by pressing F12. Navigate to the "JSON Viewer" tab in the DevTools panel. Refresh a page that makes network requests (like https://jsonplaceholder.typicode.com/posts). Click on any request in the list to inspect its JSON response in the viewer.
+
+--------------------------------------------------------------------------------
+5. TESTING INSTRUCTIONS (SHORT VERSION < 500 CHARS)
+--------------------------------------------------------------------------------
+
+1. Open "https://jsonplaceholder.typicode.com/users" to test auto-detection and view switching.
+2. Drag a local .json file into Chrome to test local file support (enable "Allow access to file URLs").
+3. Select JSON text on any page, right-click, and choose "View JSON Snippet".
+4. Open DevTools (F12), go to "JSON Viewer" tab, and inspect a network request.

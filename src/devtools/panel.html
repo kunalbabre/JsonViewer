@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+    <div class="jv-devtools-container">
+        <div class="jv-devtools-sidebar">
+            <div class="jv-devtools-header">
+                <div class="jv-header-top">
+                    <span>JSON Requests</span>
+                    <div style="display: flex; gap: 4px;">
+                        <button id="manual-btn" class="jv-icon-btn" title="Paste/Enter JSON manually">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button id="clear-btn" class="jv-icon-btn" title="Clear list">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <input type="text" id="request-search" class="jv-request-search" placeholder="Filter..." style="flex: 1;">
+                    <label title="Show only JSON responses" style="display: flex; align-items: center; font-size: 11px; cursor: pointer; user-select: none; white-space: nowrap; color: var(--text-color);">
+                        <input type="checkbox" id="json-only-filter" style="margin: 0 4px 0 0;"> JSON
+                    </label>
+                </div>
+            </div>
+            <div id="request-list" class="jv-request-list"></div>
+        </div>
+        <div id="viewer-root" class="jv-devtools-main">
+            <div class="jv-placeholder">
+                <div style="text-align: center;">
+                    <p>Select a JSON request to view</p>
+                    <p style="font-size: 0.8em; opacity: 0.7;">Monitoring network traffic...</p>
+                    <div style="margin-top: 20px; font-size: 0.85em; opacity: 0.6; max-width: 280px; line-height: 1.5;">
+                        Note: Extensions cannot modify the native Network tab. Use this panel to inspect JSON, or right-click a request and "Open in new tab".
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="panel.js"></script>
+</body>
+</html>

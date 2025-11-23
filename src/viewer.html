@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JSON Viewer</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            height: 100vh; 
+            overflow: hidden; 
+            background: var(--bg-color, #ffffff);
+            color: var(--text-color, #333333);
+        }
+        #root { 
+            height: 100%; 
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="viewer-page.js"></script>
+</body>
+</html>

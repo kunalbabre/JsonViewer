@@ -2,9 +2,10 @@ import { Icons } from './Icons.js';
 import { Toast } from './Toast.js';
 
 export class EditorView {
-    constructor(data, onUpdate) {
+    constructor(data, onUpdate, options = {}) {
         this.data = data;
         this.onUpdate = onUpdate;
+        this.options = options;
         this.content = ''; // Load async
         this.element = document.createElement('div');
         this.element.className = 'jv-editor-container';
@@ -137,11 +138,26 @@ export class EditorView {
         
         // Initial load
         if (this.worker) {
-            this.worker.postMessage({ 
-                data: this.data, 
-                version: this.version,
-                action: 'stringify' 
-            });
+            if (this.options.isRaw) {
+                this.content = typeof this.data === 'string' ? this.data : String(this.data);
+                this.textarea.value = this.content;
+                this.loader.style.display = 'none';
+                this.isLoading = false;
+                
+                // Raw mode: Show textarea content directly, hide syntax highlighting and gutter
+                this.textarea.style.color = 'var(--text-color)';
+                this.pre.style.display = 'none';
+                this.gutter.style.display = 'none';
+                // Adjust layout since gutter is gone
+                this.scroller.style.paddingLeft = '0';
+                
+            } else {
+                this.worker.postMessage({ 
+                    data: this.data, 
+                    version: this.version,
+                    action: 'stringify' 
+                });
+            }
         }
     }
 
@@ -367,6 +383,11 @@ export class EditorView {
     }
 
     handleInput() {
+        if (this.options.isRaw) {
+            this.content = this.textarea.value;
+            return;
+        }
+
         // Update active line first so virtual window can render gutter correctly
         this.updateActiveLine();
         
