@@ -34,37 +34,80 @@ export class TreeView {
         return this._searchQuery;
     }
 
-    expandMatches(query) {
+    async expandMatches(query) {
+        // Cancel previous search
+        this.currentSearchId = (this.currentSearchId || 0) + 1;
+        const searchId = this.currentSearchId;
+
         if (!query) return;
         
         this.expandedPaths = new Set();
+        const lowerQuery = query.toLowerCase();
         
-        const traverse = (obj, currentPath) => {
-            if (typeof obj !== 'object' || obj === null) return false;
-            
-            let hasMatch = false;
-            const keys = Object.keys(obj);
-            
-            for (const key of keys) {
-                const value = obj[key];
-                const isArray = Array.isArray(obj);
-                const path = currentPath ? (isArray ? `${currentPath}[${key}]` : `${currentPath}.${key}`) : key;
+        // Use a stack for iterative traversal to allow yielding
+        const stack = [{ data: this.data, path: '' }];
+        const matchingPaths = new Set();
+
+        // Time-sliced traversal to prevent UI freezing
+        const processChunk = () => {
+            return new Promise(resolve => {
+                const chunkStart = performance.now();
                 
-                let matchFound = false;
-                if (key.toLowerCase().includes(query)) matchFound = true;
-                if (typeof value !== 'object' && String(value).toLowerCase().includes(query)) matchFound = true;
-                
-                const childHasMatch = traverse(value, path);
-                
-                if (matchFound || childHasMatch) {
-                    hasMatch = true;
-                    this.expandedPaths.add(path);
+                while (stack.length > 0) {
+                    // Check for cancellation
+                    if (this.currentSearchId !== searchId) {
+                        resolve(false);
+                        return;
+                    }
+
+                    // Yield to main thread every 12ms
+                    if (performance.now() - chunkStart > 12) {
+                        setTimeout(() => resolve(processChunk()), 0);
+                        return;
+                    }
+
+                    const { data, path } = stack.pop();
+                    
+                    if (typeof data === 'object' && data !== null) {
+                        const keys = Object.keys(data);
+                        for (const key of keys) {
+                            const value = data[key];
+                            const isArray = Array.isArray(data);
+                            const currentPath = path ? (isArray ? `${path}[${key}]` : `${path}.${key}`) : key;
+                            
+                            let isMatch = false;
+                            if (key.toLowerCase().includes(lowerQuery)) isMatch = true;
+                            if (typeof value !== 'object' && value !== null && String(value).toLowerCase().includes(lowerQuery)) isMatch = true;
+                            
+                            if (isMatch) matchingPaths.add(currentPath);
+                            
+                            if (typeof value === 'object' && value !== null) {
+                                stack.push({ data: value, path: currentPath });
+                            }
+                        }
+                    }
                 }
-            }
-            return hasMatch;
+                resolve(true);
+            });
         };
+
+        const completed = await processChunk();
+        if (!completed) return;
         
-        traverse(this.data, '');
+        // Post-process: Add all parent paths for every match
+        for (const path of matchingPaths) {
+            this.expandedPaths.add(path);
+            let current = path;
+            while (true) {
+                const lastDot = current.lastIndexOf('.');
+                const lastBracket = current.lastIndexOf('[');
+                const splitIndex = Math.max(lastDot, lastBracket);
+                
+                if (splitIndex === -1) break;
+                current = current.substring(0, splitIndex);
+                this.expandedPaths.add(current);
+            }
+        }
         
         // Expand visible nodes that are on the path
         const nodes = this.element.querySelectorAll('.jv-node');
