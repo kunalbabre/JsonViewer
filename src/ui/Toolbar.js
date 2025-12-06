@@ -1,7 +1,7 @@
 import { Icons } from './Icons.js';
 
 export class Toolbar {
-    constructor({ onSearch, onSearchNext, onViewChange, onThemeToggle, onCopy, onExpandAll, onCollapseAll, onSave, onFormat, onApply, currentView, searchQuery, disabledViews = [] }) {
+    constructor({ onSearch, onSearchNext, onViewChange, onThemeToggle, onCopy, onExpandAll, onCollapseAll, onExpandToLevel, onSave, onFormat, onApply, currentView, searchQuery, disabledViews = [] }) {
         this.element = document.createElement('div');
         this.element.className = 'jv-toolbar-container';
 
@@ -122,6 +122,48 @@ export class Toolbar {
         }
         if (onCollapseAll) {
             toolsGroup.appendChild(this.createButton(Icons.collapse, 'Collapse All', onCollapseAll, 'Collapse'));
+        }
+        
+        // Level-based expand/collapse (VS Code style)
+        if (onExpandToLevel) {
+            const levelDropdown = document.createElement('div');
+            levelDropdown.className = 'jv-level-dropdown';
+            
+            const levelBtn = document.createElement('button');
+            levelBtn.className = 'jv-btn jv-level-btn';
+            levelBtn.innerHTML = `${Icons.levels || '⋮'} <span>Level</span>`;
+            levelBtn.title = 'Expand/Collapse to Level';
+            
+            const levelMenu = document.createElement('div');
+            levelMenu.className = 'jv-level-menu';
+            levelMenu.style.display = 'none';
+            
+            for (let i = 1; i <= 5; i++) {
+                const item = document.createElement('button');
+                item.className = 'jv-level-item';
+                item.textContent = `Level ${i}`;
+                item.title = `Expand to depth ${i}`;
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    onExpandToLevel(i);
+                    levelMenu.style.display = 'none';
+                };
+                levelMenu.appendChild(item);
+            }
+            
+            levelBtn.onclick = (e) => {
+                e.stopPropagation();
+                levelMenu.style.display = levelMenu.style.display === 'none' ? 'flex' : 'none';
+            };
+            
+            // Close menu when clicking outside
+            document.addEventListener('click', () => {
+                levelMenu.style.display = 'none';
+            });
+            
+            levelDropdown.appendChild(levelBtn);
+            levelDropdown.appendChild(levelMenu);
+            toolsGroup.appendChild(levelDropdown);
         }
         
         if ((onExpandAll || onCollapseAll) && (onCopy || onSave)) {

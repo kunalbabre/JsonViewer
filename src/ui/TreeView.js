@@ -4,8 +4,8 @@ import { Toast } from './Toast.js';
 // Performance tuning constants - optimized for 50MB+ files
 const BATCH_SIZE = 250; // Number of nodes to render per animation frame (increased for faster loading)
 const PAGE_SIZE = 1000; // Number of nodes to render before showing "Show More" (increased to reduce pauses)
-const LARGE_OBJECT_THRESHOLD = 50; // Objects with more items auto-collapse
-const DEEP_NESTING_THRESHOLD = 0; // Nodes deeper than this auto-collapse
+const LARGE_OBJECT_THRESHOLD = 50; // Objects with more than this many items auto-collapse
+const DEEP_NESTING_THRESHOLD = 2; // Expand first 2 levels by default (root + immediate children)
 
 export class TreeView {
     constructor(data, searchQuery = '', mode = 'json', options = {}) {
@@ -219,6 +219,11 @@ export class TreeView {
             // Force expand if requested via options
             if (this.options.expandAll) {
                 shouldCollapse = false;
+            }
+
+            // Expand to specific level (VS Code style)
+            if (typeof this.options.expandToLevel === 'number') {
+                shouldCollapse = depth >= this.options.expandToLevel;
             }
 
             toggler.className = shouldCollapse ? 'jv-toggler' : 'jv-toggler expanded';
@@ -448,11 +453,19 @@ export class TreeView {
 
     expandAll() {
         this.options.expandAll = true;
+        this.options.expandToLevel = null;
         this.reRender();
     }
 
     collapseAll() {
         this.options.expandAll = false;
+        this.options.expandToLevel = 0;
+        this.reRender();
+    }
+
+    expandToLevel(level) {
+        this.options.expandAll = false;
+        this.options.expandToLevel = level;
         this.reRender();
     }
 

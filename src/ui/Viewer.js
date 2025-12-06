@@ -61,14 +61,16 @@ export class Viewer {
 
     renderToolbar() {
         this.toolbarContainer.innerHTML = '';
+        const showExpandCollapse = this.currentView === 'tree';
         this.toolbar = new Toolbar({
             onSearch: (query) => this.handleSearch(query),
             onSearchNext: (backwards) => this.handleSearchNext(backwards),
             onViewChange: (view) => this.switchView(view),
             onThemeToggle: () => this.toggleTheme(),
             onCopy: () => this.copyToClipboard(),
-            onExpandAll: this.currentView === 'tree' || this.currentView === 'schema' ? () => this.handleExpandAll() : null,
-            onCollapseAll: this.currentView === 'tree' || this.currentView === 'schema' ? () => this.handleCollapseAll() : null,
+            onExpandAll: showExpandCollapse ? () => this.handleExpandAll() : null,
+            onCollapseAll: showExpandCollapse ? () => this.handleCollapseAll() : null,
+            onExpandToLevel: showExpandCollapse ? (level) => this.handleExpandToLevel(level) : null,
             onSave: () => this.handleSave(),
             onFormat: this.currentView === 'editor' ? () => this.editorView?.format() : null,
             onApply: this.currentView === 'editor' ? () => this.editorView?.applyChanges() : null,
@@ -638,16 +640,18 @@ export class Viewer {
     handleExpandAll() {
         if (this.currentView === 'tree' && this.treeView) {
             this.treeView.expandAll();
-        } else if (this.currentView === 'schema' && this.schemaView && this.schemaView.treeView) {
-            this.schemaView.treeView.expandAll();
         }
     }
 
     handleCollapseAll() {
         if (this.currentView === 'tree' && this.treeView) {
             this.treeView.collapseAll();
-        } else if (this.currentView === 'schema' && this.schemaView && this.schemaView.treeView) {
-            this.schemaView.treeView.collapseAll();
+        }
+    }
+
+    handleExpandToLevel(level) {
+        if (this.currentView === 'tree' && this.treeView) {
+            this.treeView.expandToLevel(level);
         }
     }
 
@@ -689,8 +693,48 @@ export class Viewer {
     }
 
     copyToClipboard() {
-        navigator.clipboard.writeText(this.rawData).then(() => {
-            Toast.show('Copied to clipboard');
+        let content = this.rawData;
+        let label = 'JSON';
+        
+        switch (this.currentView) {
+            case 'editor':
+                content = this.editorView?.textarea?.value || this.rawData;
+                label = 'JSON';
+                break;
+            case 'schema':
+                content = this.schemaView?.getSchemaString() || '';
+                label = 'Schema';
+                if (!content) {
+                    Toast.show('Schema not ready yet');
+                    return;
+                }
+                break;
+            case 'yaml':
+                try {
+                    // Import dynamically to avoid circular deps
+                    import('../utils/yaml.js').then(({ jsonToYaml }) => {
+                        const yamlContent = jsonToYaml(this.data);
+                        navigator.clipboard.writeText(yamlContent).then(() => {
+                            Toast.show('YAML copied to clipboard');
+                        }).catch((e) => {
+                            Toast.show('Failed to copy: ' + e.message);
+                        });
+                    });
+                    return;
+                } catch (e) {
+                    Toast.show('Failed to generate YAML: ' + e.message);
+                    return;
+                }
+            case 'tree':
+            case 'raw':
+            default:
+                content = this.rawData;
+                label = 'JSON';
+                break;
+        }
+        
+        navigator.clipboard.writeText(content).then(() => {
+            Toast.show(`${label} copied to clipboard`);
         }).catch((e) => {
             Toast.show('Failed to copy: ' + e.message);
         });

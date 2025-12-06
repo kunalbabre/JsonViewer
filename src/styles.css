@@ -710,12 +710,34 @@ body.json-viewer-active {
   line-height: 21px;
   font-size: 12px;
   opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
 }
 
 .jv-line-number.active {
   color: var(--text-color);
   font-weight: bold;
   opacity: 1;
+}
+
+/* Fold icons */
+.jv-fold-icon {
+  font-size: 8px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: transform 0.15s, opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.jv-fold-icon:hover {
+  opacity: 1;
+  color: var(--key-color);
+}
+
+.jv-fold-icon.folded {
+  transform: rotate(-90deg);
 }
 
 .jv-editor-scroller {
@@ -1006,6 +1028,78 @@ code:hover .jv-snippet-btn {
   --toolbar-bg: rgba(15, 23, 42, 0.8);
   --toast-bg: #ffffff;
   --toast-text: #0f172a;
+}
+
+/* Bracket Matching */
+.jv-bracket-match {
+  background-color: rgba(255, 215, 0, 0.3);
+  border: 1px solid rgba(255, 215, 0, 0.6);
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+.jv-bracket-error {
+  background-color: rgba(239, 68, 68, 0.3);
+  border: 1px solid rgba(239, 68, 68, 0.6);
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+body.dark-theme .jv-bracket-match {
+  background-color: rgba(250, 204, 21, 0.25);
+  border-color: rgba(250, 204, 21, 0.5);
+}
+
+body.dark-theme .jv-bracket-error {
+  background-color: rgba(248, 113, 113, 0.25);
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+/* Level Dropdown */
+.jv-level-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.jv-level-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.jv-level-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  flex-direction: column;
+  min-width: 100px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.jv-level-item {
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s;
+}
+
+.jv-level-item:hover {
+  background: var(--hover-bg);
+}
+
+.jv-level-item:not(:last-child) {
+  border-bottom: 1px solid var(--border-color);
 }
 
 /* System preference fallback - only applies if no manual theme class is set */

@@ -15,6 +15,8 @@ export class EditorView {
         this.version = 0; // Track content version
         this.isLoading = true;
         this.pendingRequests = new Map(); // Track pending content
+        this.foldedLines = new Set(); // Track folded line numbers
+        this.foldRegions = new Map(); // Map of start line -> end line for fold regions
         this.render();
     }
 
@@ -108,12 +110,18 @@ export class EditorView {
         this.textarea.style.letterSpacing = "0px";
         this.textarea.style.fontWeight = "400";
         
+        // Bracket Highlight Layer
+        this.bracketLayer = document.createElement('div');
+        this.bracketLayer.className = 'jv-editor-bracket-layer';
+        this.bracketLayer.style.cssText = 'position:absolute;top:0;left:10px;pointer-events:none;z-index:5;';
+        this.pre.appendChild(this.bracketLayer);
+
         // Event Listeners
         this.textarea.oninput = () => this.handleInput();
         this.textarea.onscroll = () => this.handleScroll();
         this.textarea.onkeydown = (e) => this.handleKeydown(e);
-        this.textarea.onclick = () => this.updateActiveLine();
-        this.textarea.onkeyup = () => this.updateActiveLine();
+        this.textarea.onclick = () => { this.updateActiveLine(); this.updateBracketMatch(); };
+        this.textarea.onkeyup = () => { this.updateActiveLine(); this.updateBracketMatch(); };
         
         this.scroller.appendChild(this.pre);
         this.scroller.appendChild(this.textarea);
@@ -431,6 +439,7 @@ export class EditorView {
         requestAnimationFrame(() => {
             this.updateVirtualWindow();
             this.updateActiveLine();
+            this.updateBracketMatch();
         });
     }
 
@@ -495,6 +504,121 @@ export class EditorView {
         this.updateVirtualWindow();
     }
 
+    // Bracket Matching - finds matching bracket and highlights both
+    updateBracketMatch() {
+        if (!this.bracketLayer || !this.lineOffsets || this.options.isRaw) return;
+        this.bracketLayer.innerHTML = '';
+
+        const text = this.textarea.value;
+        const cursor = this.textarea.selectionStart;
+        if (cursor >= text.length) return;
+
+        const brackets = { '{': '}', '[': ']', '}': '{', ']': '[' };
+        const openBrackets = ['{', '['];
+        const closeBrackets = ['}', ']'];
+
+        // Check character at cursor and before cursor
+        let bracketPos = -1;
+        let bracketChar = '';
+        
+        if (brackets[text[cursor]]) {
+            bracketPos = cursor;
+            bracketChar = text[cursor];
+        } else if (cursor > 0 && brackets[text[cursor - 1]]) {
+            bracketPos = cursor - 1;
+            bracketChar = text[cursor - 1];
+        }
+
+        if (bracketPos === -1) return;
+
+        // Find matching bracket
+        let matchPos = -1;
+        const isOpen = openBrackets.includes(bracketChar);
+        const target = brackets[bracketChar];
+        let depth = 0;
+
+        if (isOpen) {
+            // Search forward
+            for (let i = bracketPos; i < text.length; i++) {
+                if (text[i] === bracketChar) depth++;
+                else if (text[i] === target) {
+                    depth--;
+                    if (depth === 0) { matchPos = i; break; }
+                }
+            }
+        } else {
+            // Search backward
+            for (let i = bracketPos; i >= 0; i--) {
+                if (text[i] === bracketChar) depth++;
+                else if (text[i] === target) {
+                    depth--;
+                    if (depth === 0) { matchPos = i; break; }
+                }
+            }
+        }
+
+        if (matchPos === -1) {
+            // No match found - highlight bracket in red
+            this.highlightBracket(bracketPos, true);
+        } else {
+            // Highlight both brackets
+            this.highlightBracket(bracketPos, false);
+            this.highlightBracket(matchPos, false);
+        }
+    }
+
+    highlightBracket(pos, isError) {
+        if (!this.lineOffsets) return;
+        
+        // Find line and column for this position
+        let line = 0;
+        for (let i = 0; i < this.lineCount; i++) {
+            if (this.lineOffsets[i] > pos) break;
+            line = i;
+        }
+        const col = pos - this.lineOffsets[line];
+        
+        // Measure actual character width if not cached
+        if (!this.charWidth) {
+            const measureSpan = document.createElement('span');
+            measureSpan.style.cssText = `
+                font-family: 'SF Mono', Monaco, Menlo, Consolas, 'Ubuntu Mono', 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
+                font-size: 14px;
+                line-height: 21px;
+                position: absolute;
+                visibility: hidden;
+                white-space: pre;
+            `;
+            measureSpan.textContent = 'XXXXXXXXXX'; // Measure 10 chars for accuracy
+            document.body.appendChild(measureSpan);
+            this.charWidth = measureSpan.getBoundingClientRect().width / 10;
+            document.body.removeChild(measureSpan);
+        }
+        
+        // Calculate visual position relative to the scroller
+        const scrollTop = this.textarea.scrollTop;
+        const scrollLeft = this.textarea.scrollLeft;
+        const top = (line * this.lineHeight) - scrollTop;
+        const left = (col * this.charWidth) - scrollLeft;
+        
+        // Skip if bracket is outside visible area
+        if (top < -this.lineHeight || top > this.scroller.clientHeight) return;
+        
+        // Create highlight element
+        const highlight = document.createElement('span');
+        highlight.className = isError ? 'jv-bracket-error' : 'jv-bracket-match';
+        highlight.style.cssText = `
+            position: absolute;
+            top: ${top}px;
+            left: ${left}px;
+            width: ${this.charWidth + 1}px;
+            height: ${this.lineHeight}px;
+            pointer-events: none;
+            box-sizing: border-box;
+        `;
+        this.bracketLayer.appendChild(highlight);
+    }
+
     updateVirtualWindow(liveContent = null) {
         if (!this.lineHeight || !this.lineOffsets || this.lineCount === 0) return;
 
@@ -536,7 +660,7 @@ export class EditorView {
         // Render Search Highlights
         this.renderSearchHighlights(renderStartLine, renderEndLine, startIndex);
 
-        // Render Gutter
+        // Render Gutter (line numbers only - folding not supported in textarea editor)
         let gutterHtml = '';
         for (let i = renderStartLine; i < renderEndLine; i++) {
             const isActive = i === this.currentActiveLine ? ' active' : '';
@@ -739,6 +863,92 @@ export class EditorView {
             Toast.show('Changes applied successfully');
         } catch (e) {
             Toast.show('Cannot apply: Invalid JSON');
+        }
+    }
+
+    // Find the matching closing bracket line for a given opening line
+    findFoldEnd(startLine) {
+        const content = this.textarea.value;
+        const lineStart = this.lineOffsets[startLine];
+        const lineEnd = (startLine + 1 < this.lineOffsets.length) ? this.lineOffsets[startLine + 1] - 1 : content.length;
+        const lineText = content.substring(lineStart, lineEnd);
+        
+        // Find the opening bracket
+        const trimmed = lineText.trimEnd();
+        const openChar = trimmed.endsWith('{') ? '{' : trimmed.endsWith('[') ? '[' : null;
+        if (!openChar) return startLine;
+        
+        const closeChar = openChar === '{' ? '}' : ']';
+        let depth = 0;
+        
+        // Scan from start line to find matching close
+        for (let i = startLine; i < this.lineCount; i++) {
+            const lStart = this.lineOffsets[i];
+            const lEnd = (i + 1 < this.lineOffsets.length) ? this.lineOffsets[i + 1] : content.length;
+            const text = content.substring(lStart, lEnd);
+            
+            for (const char of text) {
+                if (char === openChar) depth++;
+                else if (char === closeChar) {
+                    depth--;
+                    if (depth === 0) return i;
+                }
+            }
+        }
+        return startLine; // No match found
+    }
+
+    toggleFold(line) {
+        if (this.foldedLines.has(line)) {
+            // Unfold
+            this.foldedLines.delete(line);
+            this.foldRegions.delete(line);
+        } else {
+            // Fold - find the end line
+            const endLine = this.findFoldEnd(line);
+            if (endLine > line) {
+                this.foldedLines.add(line);
+                this.foldRegions.set(line, endLine);
+            }
+        }
+        this.updateVirtualWindow();
+    }
+
+    // Expand all folds - for editor, this means pretty-print/format
+    expandAllFolds() {
+        this.foldedLines.clear();
+        this.foldRegions.clear();
+        // Format the JSON (pretty print)
+        this.format();
+    }
+
+    // Collapse all foldable regions - for editor, this means minify
+    collapseAllFolds() {
+        this.foldedLines.clear();
+        this.foldRegions.clear();
+        // Minify the JSON
+        this.minify();
+    }
+    
+    // Minify JSON (single line)
+    minify() {
+        try {
+            const current = JSON.parse(this.textarea.value);
+            const minified = JSON.stringify(current);
+            this.content = minified;
+            this.textarea.value = minified;
+            
+            // Re-parse line offsets
+            if (this.worker) {
+                this.version++;
+                this.worker.postMessage({ text: this.content, version: this.version });
+            } else {
+                this.buildLineOffsets(this.content);
+            }
+            
+            Toast.show('JSON minified');
+        } catch (e) {
+            Toast.show('Invalid JSON: ' + e.message);
         }
     }
 }

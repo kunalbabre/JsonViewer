@@ -1,6 +1,6 @@
 import { Icons } from './Icons.js';
 import { Toast } from './Toast.js';
-import { TreeView } from './TreeView.js';
+import { EditorView } from './EditorView.js';
 
 export class SchemaView {
     constructor(data, searchQuery = '') {
@@ -8,6 +8,7 @@ export class SchemaView {
         this.searchQuery = searchQuery;
         this.element = document.createElement('div');
         this.element.className = 'jv-schema-container';
+        this.editorView = null;
         this.render();
     }
 
@@ -26,37 +27,46 @@ export class SchemaView {
 
     initWorker() {
         const workerCode = `
-            const SCHEMA_SAMPLE_SIZE = 1000; // Increased sample size for better accuracy
-            const MAX_SCHEMA_DEPTH = 50; // Increased depth
+            const SCHEMA_SAMPLE_SIZE = 1000;
+            const MAX_SCHEMA_DEPTH = 50;
 
             self.onmessage = function(e) {
                 const { data } = e.data;
                 try {
-                    const schema = generateSchema(data);
+                    const innerSchema = generateSchema(data, 0);
+                    // Wrap with JSON Schema draft-07 metadata
+                    const schema = {
+                        "$schema": "http://json-schema.org/draft-07/schema#",
+                        "title": "Generated schema for Root",
+                        ...innerSchema
+                    };
                     self.postMessage({ schema });
                 } catch (err) {
                     self.postMessage({ error: err.message });
                 }
             };
 
-            // WeakSet is not available for structured clone transfer or across worker boundary for the same object references easily
-            // But we are processing a copy of data. We can use a Set of objects if we want to track circular refs within the worker's copy.
-            // However, JSON.stringify/parse usually breaks circular refs or throws. 
-            // Assuming input data is valid JSON (no circular refs), we don't need WeakSet for that.
-            // But if we are traversing, we might need it to prevent infinite loops if the structure is recursive (though JSON isn't).
-            
-            function generateSchema(data, depth = 0) {
+            function generateSchema(data, depth) {
                 if (depth > MAX_SCHEMA_DEPTH) {
-                    return { type: 'unknown', note: 'Max depth exceeded' };
+                    return { type: 'object' };
                 }
 
                 const type = getType(data);
 
                 if (type === 'object') {
-                    const schema = { type: 'object', properties: {} };
-                    Object.keys(data).forEach(key => {
+                    const keys = Object.keys(data);
+                    const schema = { 
+                        type: 'object', 
+                        properties: {},
+                        required: keys.length > 0 ? keys : undefined
+                    };
+                    keys.forEach(key => {
                         schema.properties[key] = generateSchema(data[key], depth + 1);
                     });
+                    // Remove required if empty
+                    if (!schema.required || schema.required.length === 0) {
+                        delete schema.required;
+                    }
                     return schema;
                 }
 
@@ -70,17 +80,13 @@ export class SchemaView {
                         }
                         
                         if (itemSchemas.length > 0) {
-                            // Use first element as initial value to avoid merging with empty object
                             schema.items = itemSchemas.reduce((acc, curr) => mergeSchemas(acc, curr));
-                        }
-                        
-                        if (data.length > sampleSize) {
-                            schema.note = \`Schema generated from \${sampleSize} of \${data.length} items\`;
                         }
                     }
                     return schema;
                 }
 
+                // For primitives: string, number, boolean, null
                 return { type };
             }
 
@@ -95,7 +101,7 @@ export class SchemaView {
                 
                 const result = { type: uniqueTypes.length === 1 ? uniqueTypes[0] : uniqueTypes };
 
-                // If object type is present, merge properties
+                // If object type is present, merge properties and required
                 if (uniqueTypes.includes('object')) {
                     const propsA = a.properties || {};
                     const propsB = b.properties || {};
@@ -110,6 +116,14 @@ export class SchemaView {
                                 result.properties[key] = propsA[key] || propsB[key];
                             }
                         });
+                    }
+                    
+                    // Merge required - only include keys that are required in both
+                    const reqA = a.required || [];
+                    const reqB = b.required || [];
+                    const commonRequired = reqA.filter(k => reqB.includes(k));
+                    if (commonRequired.length > 0) {
+                        result.required = commonRequired;
                     }
                 }
 
@@ -126,6 +140,7 @@ export class SchemaView {
             function getType(value) {
                 if (value === null) return 'null';
                 if (Array.isArray(value)) return 'array';
+                if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'number';
                 return typeof value;
             }
         `;
@@ -147,19 +162,17 @@ export class SchemaView {
 
     renderSchema(schema) {
         this.element.innerHTML = '';
-        const schemaString = JSON.stringify(schema, null, 2);
-        const tree = new TreeView(schema, this.searchQuery);
         
-        // Expose tree for external control
-        this.treeView = tree;
-
-        const treeContainer = document.createElement('div');
-        treeContainer.className = 'jv-schema-tree';
-        treeContainer.style.flex = '1';
-        treeContainer.style.overflow = 'auto';
-        treeContainer.appendChild(tree.element);
-
-        this.element.appendChild(treeContainer);
+        // Store schema for copying
+        this.schema = schema;
+        
+        // Use EditorView to display the schema (read-only style)
+        this.editorView = new EditorView(schema, null, { isRaw: false });
+        this.element.appendChild(this.editorView.element);
+    }
+    
+    getSchemaString() {
+        return this.schema ? JSON.stringify(this.schema, null, 2) : '';
     }
 
     renderError(message) {
