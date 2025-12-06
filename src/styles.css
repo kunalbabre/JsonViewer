@@ -139,6 +139,10 @@ body.json-viewer-active {
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.025em;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  line-height: 1;
 }
 
 /* Action Bar (Second Row) */
@@ -922,6 +926,7 @@ code:hover .jv-snippet-btn {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--border-color);
+  padding-top: 0.5rem;
 }
 
 .jv-modal-close {
@@ -940,7 +945,7 @@ code:hover .jv-snippet-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 1001;
   transition: all 0.2s;
 }
 
@@ -957,21 +962,67 @@ code:hover .jv-snippet-btn {
   overflow: hidden;
 }
 
-/* Ensure modal inherits theme variables even if body doesn't have class */
+/* Modal content adjustments */
+.jv-modal-content .jv-content {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Add right margin to theme button area in modal to account for close button */
+.jv-modal-content .jv-meta-group {
+  margin-right: 4rem; /* Space for close button */
+}
+
+/* Ensure modal inherits theme variables - light theme defaults */
 .jv-modal-content {
   --bg-color: #ffffff;
   --text-color: #1a1a1a;
+  --key-color: #d946ef;
+  --string-color: #22c55e;
+  --number-color: #f59e0b;
+  --boolean-color: #3b82f6;
+  --null-color: #9ca3af;
+  --link-color: #3b82f6;
   --border-color: #e5e7eb;
   --hover-bg: #f3f4f6;
-  --toolbar-bg: rgba(255, 255, 255, 0.9);
+  --toolbar-bg: rgba(255, 255, 255, 0.8);
+  --toast-bg: #1a1a1a;
+  --toast-text: #ffffff;
 }
 
+/* Dark theme for modal when dark-theme class is present */
+.jv-modal-content.dark-theme,
+.jv-modal-overlay.dark-theme .jv-modal-content {
+  --bg-color: #0f172a;
+  --text-color: #e2e8f0;
+  --key-color: #e879f9;
+  --string-color: #4ade80;
+  --number-color: #fbbf24;
+  --boolean-color: #60a5fa;
+  --null-color: #94a3b8;
+  --link-color: #60a5fa;
+  --border-color: #334155;
+  --hover-bg: #1e293b;
+  --toolbar-bg: rgba(15, 23, 42, 0.8);
+  --toast-bg: #ffffff;
+  --toast-text: #0f172a;
+}
+
+/* System preference fallback - only applies if no manual theme class is set */
 @media (prefers-color-scheme: dark) {
-  .jv-modal-content {
+  .jv-modal-content:not(.dark-theme) {
     --bg-color: #0f172a;
     --text-color: #e2e8f0;
+    --key-color: #e879f9;
+    --string-color: #4ade80;
+    --number-color: #fbbf24;
+    --boolean-color: #60a5fa;
+    --null-color: #94a3b8;
+    --link-color: #60a5fa;
     --border-color: #334155;
     --hover-bg: #1e293b;
-    --toolbar-bg: rgba(15, 23, 42, 0.9);
+    --toolbar-bg: rgba(15, 23, 42, 0.8);
+    --toast-bg: #ffffff;
+    --toast-text: #0f172a;
   }
 }

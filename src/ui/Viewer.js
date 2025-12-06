@@ -21,13 +21,21 @@ export class Viewer {
         // Cache rendered views for fast switching
         this.viewCache = {};
 
-        // Detect system theme preference
+        // Detect theme preference from storage, then system preference
+        let storedTheme = null;
+        try {
+            storedTheme = localStorage.getItem('json-viewer-theme');
+        } catch (e) {
+            // localStorage might not be available in all contexts
+        }
+        
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        this.theme = prefersDark ? 'dark' : 'light';
-        console.log('JSON Viewer: Detected theme preference:', this.theme, 'prefersDark:', prefersDark);
+        const shouldUseDark = storedTheme === 'dark' || (!storedTheme && prefersDark);
+        this.theme = shouldUseDark ? 'dark' : 'light';
+        console.log('JSON Viewer: Theme preference:', this.theme, 'stored:', storedTheme, 'prefersDark:', prefersDark);
 
         // Apply theme immediately
-        if (prefersDark) {
+        if (shouldUseDark) {
             document.body.classList.add('dark-theme');
             this.root.classList.add('dark');
             console.log('JSON Viewer: Applied dark theme classes');
@@ -655,9 +663,29 @@ export class Viewer {
     }
 
     toggleTheme() {
-        document.body.classList.toggle('dark-theme');
+        const isDark = document.body.classList.toggle('dark-theme');
         // Also toggle a class on root for specific overrides if needed
-        this.root.classList.toggle('dark');
+        this.root.classList.toggle('dark', isDark);
+        
+        // Handle modal container if we're in a modal
+        const modalRoot = document.getElementById('jv-modal-root');
+        if (modalRoot) {
+            modalRoot.classList.toggle('dark-theme', isDark);
+        }
+        
+        // Also toggle on modal content for CSS custom property overrides
+        const modalContent = document.querySelector('.jv-modal-content');
+        if (modalContent) {
+            modalContent.classList.toggle('dark-theme', isDark);
+        }
+        
+        // Store preference for persistence
+        try {
+            localStorage.setItem('json-viewer-theme', isDark ? 'dark' : 'light');
+        } catch (e) {
+            // localStorage might not be available in all contexts
+            console.warn('Could not save theme preference:', e);
+        }
     }
 
     copyToClipboard() {

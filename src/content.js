@@ -118,6 +118,26 @@ function showModal(json, rawData) {
     modal.appendChild(content);
     document.body.appendChild(modal);
 
+    // Initialize theme for modal based on current state, stored preference, or system preference
+    const hasManualDarkTheme = document.body.classList.contains('dark-theme');
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    let storedTheme = null;
+    try {
+        storedTheme = localStorage.getItem('json-viewer-theme');
+    } catch (e) {
+        // localStorage might not be available in all contexts
+    }
+    
+    const shouldUseDark = hasManualDarkTheme || 
+                         storedTheme === 'dark' || 
+                         (!document.body.classList.contains('light-theme') && !storedTheme && systemPrefersDark);
+    
+    if (shouldUseDark) {
+        modal.classList.add('dark-theme');
+        content.classList.add('dark-theme');
+    }
+
     // Initialize Viewer
     // We need to ensure Viewer is loaded
     const options = { expandAll: true };
