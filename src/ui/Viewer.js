@@ -710,21 +710,13 @@ export class Viewer {
                 }
                 break;
             case 'yaml':
-                try {
-                    // Import dynamically to avoid circular deps
-                    import('../utils/yaml.js').then(({ jsonToYaml }) => {
-                        const yamlContent = jsonToYaml(this.data);
-                        navigator.clipboard.writeText(yamlContent).then(() => {
-                            Toast.show('YAML copied to clipboard');
-                        }).catch((e) => {
-                            Toast.show('Failed to copy: ' + e.message);
-                        });
-                    });
-                    return;
-                } catch (e) {
-                    Toast.show('Failed to generate YAML: ' + e.message);
+                content = this.yamlView?.getYamlString() || '';
+                label = 'YAML';
+                if (!content) {
+                    Toast.show('YAML not ready yet');
                     return;
                 }
+                break;
             case 'tree':
             case 'raw':
             default:

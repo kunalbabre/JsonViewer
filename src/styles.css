@@ -602,7 +602,8 @@ body.json-viewer-active {
   font-size: 0.9rem;
   resize: none;
   outline: none;
-  white-space: pre;
+  white-space: pre-wrap;
+  word-break: break-all;
   overflow: auto;
   padding: 1rem;
 }
@@ -659,6 +660,7 @@ body.json-viewer-active {
   display: flex;
   flex-direction: column;
   height: 100%;
+  flex: 1;
   position: relative;
 }
 
@@ -765,7 +767,7 @@ body.json-viewer-active {
   height: 100%;
   margin: 0;
   border: 0;
-  padding: 0 10px; /* Explicit px padding */
+  padding: 0 10px;
   box-sizing: border-box;
   overflow: auto;
   white-space: pre;
@@ -773,7 +775,7 @@ body.json-viewer-active {
   font-size: 14px;
   line-height: 21px;
   letter-spacing: 0px;
-  font-weight: 400; /* Enforce normal weight */
+  font-weight: 400;
   tab-size: 2;
   -moz-tab-size: 2;
   font-feature-settings: normal;
@@ -787,7 +789,7 @@ body.json-viewer-active {
   caret-color: var(--text-color);
   resize: none;
   outline: none;
-  /* Performance optimizations */
+  cursor: text;
   text-rendering: optimizeSpeed;
   font-variant-ligatures: none;
   will-change: scroll-position;
@@ -800,8 +802,7 @@ body.json-viewer-active {
   color: var(--text-color);
   pointer-events: none;
   overflow: hidden;
-  padding: 0; /* Remove padding from container */
-  /* Match textarea exactly */
+  padding: 0;
   text-rendering: optimizeSpeed;
   font-variant-ligatures: none;
 }
@@ -818,6 +819,7 @@ body.json-viewer-active {
   will-change: transform;
   padding: 0 10px; /* Match textarea padding exactly */
   box-sizing: border-box;
+  pointer-events: none; /* Allow clicks to pass through to textarea */
   /* Match textarea exactly */
   text-rendering: optimizeSpeed;
   font-variant-ligatures: none;
@@ -845,6 +847,8 @@ body.json-viewer-active {
 .jv-token-boolean { color: var(--boolean-color); }
 .jv-token-null { color: var(--null-color); }
 .jv-token-key { color: var(--key-color); }
+.jv-token-comment { color: #6a9955; font-style: italic; }
+.jv-token-bracket { color: var(--bracket-color); }
 
 .jv-editor-warning {
   padding: 0.5rem;

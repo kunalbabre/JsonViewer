@@ -6,6 +6,7 @@ export class EditorView {
         this.data = data;
         this.onUpdate = onUpdate;
         this.options = options;
+        this.mode = options.mode || 'json'; // 'json' or 'yaml'
         this.content = ''; // Load async
         this.element = document.createElement('div');
         this.element.className = 'jv-editor-container';
@@ -159,6 +160,15 @@ export class EditorView {
                 // Adjust layout since gutter is gone
                 this.scroller.style.paddingLeft = '0';
                 
+            } else if (this.mode === 'yaml' && typeof this.data === 'string') {
+                // YAML mode with string data - no need to stringify
+                this.content = this.data;
+                this.textarea.value = this.content;
+                this.worker.postMessage({ 
+                    text: this.content, 
+                    version: this.version,
+                    action: 'scan' 
+                });
             } else {
                 this.worker.postMessage({ 
                     data: this.data, 
@@ -211,8 +221,8 @@ export class EditorView {
                     }
                 }
 
-                // Default action: scan
-                if (text) {
+                // Explicit scan action or default
+                if (action === 'scan' || text) {
                     scan(text, version);
                 }
             };
@@ -314,7 +324,9 @@ export class EditorView {
             this.lineOffsets = offsets;
             this.lineCount = count;
             
-            // Restore UI
+            // Hide loader and restore UI
+            this.loader.style.display = 'none';
+            this.isLoading = false;
             this.updateVirtualWindow();
             this.textarea.classList.remove('dirty');
             this.code.style.display = 'block';
@@ -791,20 +803,24 @@ export class EditorView {
         }
     }
 
-    highlight(json) {
-        if (!json) return '';
+    highlight(text) {
+        if (!text) return '';
         
-        // Performance: If line is too long (e.g. minified JSON), truncate highlighting
-        // to prevent regex engine from freezing the main thread.
-        if (json.length > 20000) {
-            return json.substring(0, 20000).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + 
+        // Performance: If line is too long, truncate highlighting
+        if (text.length > 20000) {
+            return text.substring(0, 20000).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + 
                    '<span class="jv-token-null">... (highlighting disabled for long line)</span>';
         }
 
         // Escape HTML
-        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         
-        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+        if (this.mode === 'yaml') {
+            return this.highlightYaml(text);
+        }
+        
+        // JSON highlighting
+        return text.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
             let cls = 'number';
             if (/^"/.test(match)) {
                 if (/:$/.test(match)) {
@@ -819,6 +835,90 @@ export class EditorView {
             }
             return '<span class="jv-token-' + cls + '">' + match + '</span>';
         });
+    }
+    
+    escapeHtml(text) {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+    
+    highlightYaml(text) {
+        // Process line by line for YAML
+        return text.split('\n').map(line => {
+            // Comments (full line)
+            if (/^\s*#/.test(line)) {
+                return '<span class="jv-token-comment">' + this.escapeHtml(line) + '</span>';
+            }
+            
+            // Handle array item prefix: "- key: value" or "- value"
+            const arrayMatch = line.match(/^(\s*-\s+)(.*)$/);
+            if (arrayMatch) {
+                const prefix = arrayMatch[1];
+                const rest = arrayMatch[2];
+                const highlightedPrefix = prefix.replace('-', '<span class="jv-token-bracket">-</span>');
+                const highlightedRest = this.highlightYamlKeyValue(rest);
+                return highlightedPrefix + highlightedRest;
+            }
+            
+            // Regular key: value line
+            return this.highlightYamlKeyValue(line);
+        }).join('\n');
+    }
+    
+    highlightYamlKeyValue(line) {
+        // Match "key: value" pattern - key can contain letters, numbers, underscores, hyphens
+        const kvMatch = line.match(/^(\s*)([a-zA-Z_][a-zA-Z0-9_-]*)(:\s*)(.*)$/);
+        if (kvMatch) {
+            const indent = kvMatch[1];
+            const key = kvMatch[2];
+            const colon = kvMatch[3];
+            const value = kvMatch[4];
+            const highlightedValue = this.highlightYamlValue(value);
+            return indent + '<span class="jv-token-key">' + this.escapeHtml(key) + '</span>' + colon + highlightedValue;
+        }
+        
+        // Just a value (standalone in arrays) or unchanged line
+        if (line.trim()) {
+            return this.highlightYamlValue(line);
+        }
+        return this.escapeHtml(line);
+    }
+    
+    highlightYamlValue(value) {
+        if (!value) return value;
+        
+        const trimmed = value.trim();
+        if (!trimmed) return value;
+        
+        // Preserve leading whitespace
+        const leadingSpace = value.match(/^(\s*)/)[1];
+        const content = value.substring(leadingSpace.length);
+        const escapedContent = this.escapeHtml(content);
+        
+        // Quoted string
+        if (/^(['"]).*\1$/.test(trimmed)) {
+            return leadingSpace + '<span class="jv-token-string">' + escapedContent + '</span>';
+        }
+        // Boolean
+        if (/^(true|false)$/i.test(trimmed)) {
+            return leadingSpace + '<span class="jv-token-boolean">' + escapedContent + '</span>';
+        }
+        // Null
+        if (/^(null|~)$/i.test(trimmed)) {
+            return leadingSpace + '<span class="jv-token-null">' + escapedContent + '</span>';
+        }
+        // Number (integer or decimal)
+        if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(trimmed)) {
+            return leadingSpace + '<span class="jv-token-number">' + escapedContent + '</span>';
+        }
+        // Inline comment
+        if (trimmed.startsWith('#')) {
+            return leadingSpace + '<span class="jv-token-comment">' + escapedContent + '</span>';
+        }
+        // Unquoted string value
+        return leadingSpace + '<span class="jv-token-string">' + escapedContent + '</span>';
     }
 
     format() {
