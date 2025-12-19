@@ -6,20 +6,75 @@ import { YamlView } from './YamlView.js';
 import { EditorView } from './EditorView.js';
 import { Toast } from './Toast.js';
 
+/**
+ * @typedef {'tree' | 'editor' | 'raw' | 'schema' | 'yaml'} ViewMode
+ */
+
+/**
+ * @typedef {Object} ViewerOptions
+ * @property {ViewMode} [initialView] - Initial view mode to display
+ * @property {boolean} [isInvalid] - Whether the JSON is invalid (enables raw editor mode)
+ * @property {boolean} [expandAll] - Expand all tree nodes on load
+ * @property {number} [expandToLevel] - Expand tree to specific depth level
+ * @property {(view: ViewMode) => void} [onViewChange] - Callback when view mode changes
+ */
+
+/**
+ * @typedef {Object} SearchMatch
+ * @property {number} [start] - Start index for text matches
+ * @property {number} [end] - End index for text matches
+ * @property {HTMLElement} [element] - DOM element for element matches
+ * @property {boolean} [isCurrent] - Whether this is the current highlighted match
+ */
+
+/**
+ * Main JSON Viewer orchestrator class.
+ * Manages multiple view modes, search, themes, and coordinates all UI components.
+ */
 export class Viewer {
+    /**
+     * Creates a new Viewer instance.
+     *
+     * @param {HTMLElement} root - Container element to render into
+     * @param {any} data - Parsed JSON data object
+     * @param {string} rawData - Original raw JSON string
+     * @param {ViewerOptions} [options={}] - Configuration options
+     */
     constructor(root, data, rawData, options = {}) {
+        /** @type {HTMLElement} */
         this.root = root;
+        /** @type {any} */
         this.data = data;
+        /** @type {string} */
         this.rawData = rawData;
+        /** @type {ViewerOptions} */
         this.options = options;
-        this.currentView = options.initialView || (options.isInvalid ? 'editor' : 'tree'); // Default to editor for invalid JSON
+        /** @type {ViewMode} */
+        this.currentView = options.initialView || (options.isInvalid ? 'editor' : 'tree');
+        /** @type {string} */
         this.searchQuery = '';
+        /** @type {SearchMatch[]} */
         this.searchMatches = [];
+        /** @type {number} */
         this.currentMatchIndex = -1;
+        /** @type {number|null} */
         this.searchDebounceTimer = null;
-        
-        // Cache rendered views for fast switching
+        /** @type {((e: KeyboardEvent) => void)|null} */
+        this.keydownHandler = null;
+
+        /** @type {Object<ViewMode, HTMLElement>} Cache rendered views for fast switching */
         this.viewCache = {};
+
+        /** @type {TreeView|null} */
+        this.treeView = null;
+        /** @type {EditorView|null} */
+        this.editorView = null;
+        /** @type {SchemaView|null} */
+        this.schemaView = null;
+        /** @type {YamlView|null} */
+        this.yamlView = null;
+        /** @type {Toolbar|null} */
+        this.toolbar = null;
 
         // Detect theme preference from storage, then system preference
         let storedTheme = null;
@@ -28,9 +83,10 @@ export class Viewer {
         } catch (e) {
             // localStorage might not be available in all contexts
         }
-        
+
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const shouldUseDark = storedTheme === 'dark' || (!storedTheme && prefersDark);
+        /** @type {'dark' | 'light'} */
         this.theme = shouldUseDark ? 'dark' : 'light';
         console.log('JSON Viewer: Theme preference:', this.theme, 'stored:', storedTheme, 'prefersDark:', prefersDark);
 
@@ -104,96 +160,12 @@ export class Viewer {
         let viewElement = this.viewCache[this.currentView];
 
         if (!viewElement) {
-            // Create new view
-            if (this.currentView === 'tree') {
-                const container = document.createElement('div');
-                container.className = 'jv-schema-container';
-                
-                const treeContainer = document.createElement('div');
-                treeContainer.className = 'jv-schema-tree';
-                treeContainer.style.flex = '1';
-
-                this.treeView = new TreeView(this.data, this.searchQuery, 'json', this.options);
-                treeContainer.appendChild(this.treeView.element);
-
-                container.appendChild(treeContainer);
-                container._treeView = this.treeView; // Store reference
-                
-                viewElement = container;
-                
-                // Auto expand if searching
-                if (this.searchQuery.length > 2) {
-                    this.treeView.expandAll();
-                }
-
-            } else if (this.currentView === 'editor') {
-                const dataToUse = this.options.isInvalid ? this.rawData : this.data;
-                const editor = new EditorView(dataToUse, (newData) => {
-                    this.data = newData;
-                    this.rawData = JSON.stringify(newData, null, 2);
-                    
-                    if (this.options.isInvalid) {
-                        this.options.isInvalid = false;
-                        this.renderToolbar();
-                    }
-
-                    // Clear cache to force re-render of other views with new data
-                    // We need to remove elements from DOM too
-                    this.viewCache = {};
-                    this.contentContainer.innerHTML = '';
-                    // Re-render current view
-                    this.renderContent();
-                }, { isRaw: this.options.isInvalid });
-                this.editorView = editor;
-                viewElement = editor.element;
-                viewElement._editorView = editor; // Store reference
-
-            } else if (this.currentView === 'raw') {
-                const container = document.createElement('div');
-                container.className = 'jv-schema-container';
-                
-                const rawContainer = document.createElement('div');
-                rawContainer.className = 'jv-raw-container';
-                
-                const backdrop = document.createElement('div');
-                backdrop.className = 'jv-raw-backdrop';
-                
-                const textarea = document.createElement('textarea');
-                textarea.className = 'jv-raw';
-                
-                const MAX_RAW_SIZE = 1000000; // 1MB
-                let content = this.rawData;
-                if (this.rawData.length > MAX_RAW_SIZE) {
-                    content = this.rawData.substring(0, MAX_RAW_SIZE) + '\n\n... (Truncated for performance. Use "Save JSON" to download full content.)';
-                }
-                
-                textarea.value = content;
-                backdrop.textContent = content; // Initial content
-
-                textarea.readOnly = true;
-                
-                // Sync scroll
-                textarea.addEventListener('scroll', () => {
-                    backdrop.scrollTop = textarea.scrollTop;
-                    backdrop.scrollLeft = textarea.scrollLeft;
-                });
-
-                rawContainer.appendChild(backdrop);
-                rawContainer.appendChild(textarea);
-                container.appendChild(rawContainer);
-                viewElement = container;
-
-            } else if (this.currentView === 'schema') {
-                const schema = new SchemaView(this.data, this.searchQuery);
-                this.schemaView = schema;
-                viewElement = schema.element;
-                viewElement._schemaView = schema;
-
-            } else if (this.currentView === 'yaml') {
-                const yaml = new YamlView(this.data, this.searchQuery);
-                this.yamlView = yaml;
-                viewElement = yaml.element;
-                viewElement._yamlView = yaml;
+            // Create new view with error boundary
+            try {
+                viewElement = this.createView(this.currentView);
+            } catch (e) {
+                console.error(`JSON Viewer: Failed to create ${this.currentView} view:`, e);
+                viewElement = this.createErrorView(this.currentView, e);
             }
 
             // Cache and append
@@ -230,6 +202,147 @@ export class Viewer {
                 }
             }
         }
+    }
+
+    createView(viewName) {
+        let viewElement = null;
+
+        if (viewName === 'tree') {
+            const container = document.createElement('div');
+            container.className = 'jv-schema-container';
+
+            const treeContainer = document.createElement('div');
+            treeContainer.className = 'jv-schema-tree';
+            treeContainer.style.flex = '1';
+
+            this.treeView = new TreeView(this.data, this.searchQuery, 'json', this.options);
+            treeContainer.appendChild(this.treeView.element);
+
+            container.appendChild(treeContainer);
+            container._treeView = this.treeView; // Store reference
+
+            viewElement = container;
+
+            // Auto expand if searching
+            if (this.searchQuery.length > 2) {
+                this.treeView.expandAll();
+            }
+
+        } else if (viewName === 'editor') {
+            const dataToUse = this.options.isInvalid ? this.rawData : this.data;
+            const editor = new EditorView(dataToUse, (newData) => {
+                this.data = newData;
+                this.rawData = JSON.stringify(newData, null, 2);
+
+                if (this.options.isInvalid) {
+                    this.options.isInvalid = false;
+                    this.renderToolbar();
+                }
+
+                // Clear cache to force re-render of other views with new data
+                this.viewCache = {};
+                this.contentContainer.innerHTML = '';
+                // Re-render current view
+                this.renderContent();
+            }, { isRaw: this.options.isInvalid });
+            this.editorView = editor;
+            viewElement = editor.element;
+            viewElement._editorView = editor; // Store reference
+
+        } else if (viewName === 'raw') {
+            const container = document.createElement('div');
+            container.className = 'jv-schema-container';
+
+            const rawContainer = document.createElement('div');
+            rawContainer.className = 'jv-raw-container';
+
+            const backdrop = document.createElement('div');
+            backdrop.className = 'jv-raw-backdrop';
+
+            const textarea = document.createElement('textarea');
+            textarea.className = 'jv-raw';
+
+            const MAX_RAW_SIZE = 1000000; // 1MB
+            let content = this.rawData;
+            if (this.rawData.length > MAX_RAW_SIZE) {
+                content = this.rawData.substring(0, MAX_RAW_SIZE) + '\n\n... (Truncated for performance. Use "Save JSON" to download full content.)';
+            }
+
+            textarea.value = content;
+            backdrop.textContent = content; // Initial content
+
+            textarea.readOnly = true;
+
+            // Sync scroll
+            textarea.addEventListener('scroll', () => {
+                backdrop.scrollTop = textarea.scrollTop;
+                backdrop.scrollLeft = textarea.scrollLeft;
+            });
+
+            rawContainer.appendChild(backdrop);
+            rawContainer.appendChild(textarea);
+            container.appendChild(rawContainer);
+            viewElement = container;
+
+        } else if (viewName === 'schema') {
+            const schema = new SchemaView(this.data, this.searchQuery);
+            this.schemaView = schema;
+            viewElement = schema.element;
+            viewElement._schemaView = schema;
+
+        } else if (viewName === 'yaml') {
+            const yaml = new YamlView(this.data, this.searchQuery);
+            this.yamlView = yaml;
+            viewElement = yaml.element;
+            viewElement._yamlView = yaml;
+        }
+
+        return viewElement;
+    }
+
+    createErrorView(viewName, error) {
+        const container = document.createElement('div');
+        container.className = 'jv-schema-container';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.alignItems = 'center';
+        container.style.justifyContent = 'center';
+        container.style.padding = '2rem';
+        container.style.color = 'var(--null-color)';
+        container.style.textAlign = 'center';
+
+        const icon = document.createElement('div');
+        icon.style.fontSize = '3rem';
+        icon.style.marginBottom = '1rem';
+        icon.textContent = '⚠️';
+
+        const title = document.createElement('div');
+        title.style.fontSize = '1.25rem';
+        title.style.fontWeight = 'bold';
+        title.style.marginBottom = '0.5rem';
+        title.textContent = `Failed to render ${viewName} view`;
+
+        const message = document.createElement('div');
+        message.style.fontSize = '0.875rem';
+        message.style.opacity = '0.8';
+        message.style.maxWidth = '400px';
+        message.textContent = error.message || 'An unexpected error occurred';
+
+        const retryBtn = document.createElement('button');
+        retryBtn.className = 'jv-btn';
+        retryBtn.style.marginTop = '1rem';
+        retryBtn.textContent = 'Try Again';
+        retryBtn.onclick = () => {
+            delete this.viewCache[viewName];
+            this.renderContent();
+        };
+
+        container.appendChild(icon);
+        container.appendChild(title);
+        container.appendChild(message);
+        container.appendChild(retryBtn);
+
+        return container;
     }
 
     switchView(view) {
@@ -733,7 +846,8 @@ export class Viewer {
     }
 
     setupKeyboardShortcuts() {
-        document.addEventListener('keydown', (e) => {
+        // Store bound handler for cleanup
+        this.keydownHandler = (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
                 e.preventDefault();
                 try {
@@ -743,6 +857,48 @@ export class Viewer {
                     console.warn('Failed to focus search input:', err);
                 }
             }
-        });
+        };
+        document.addEventListener('keydown', this.keydownHandler);
+    }
+
+    /**
+     * Clean up event listeners and resources to prevent memory leaks.
+     * Call this when removing the viewer from the DOM.
+     */
+    destroy() {
+        // Remove keyboard shortcut listener
+        if (this.keydownHandler) {
+            document.removeEventListener('keydown', this.keydownHandler);
+            this.keydownHandler = null;
+        }
+
+        // Clean up search debounce timer
+        if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer);
+            this.searchDebounceTimer = null;
+        }
+
+        // Terminate any active workers in views
+        if (this.editorView?.worker) {
+            this.editorView.worker.terminate();
+        }
+        if (this.schemaView?.worker) {
+            this.schemaView.worker.terminate();
+        }
+
+        // Clean up toolbar
+        if (this.toolbar?.destroy) {
+            this.toolbar.destroy();
+        }
+
+        // Clear view cache
+        this.viewCache = {};
+
+        // Clear references
+        this.treeView = null;
+        this.editorView = null;
+        this.schemaView = null;
+        this.yamlView = null;
+        this.toolbar = null;
     }
 }

@@ -43,7 +43,8 @@
     {
       "resources": [
         "src/ui/*.js",
-        "src/utils/*.js"
+        "src/utils/*.js",
+        "src/config.js"
       ],
       "matches": [
         "<all_urls>"

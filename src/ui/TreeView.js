@@ -1,26 +1,62 @@
 import { Icons } from './Icons.js';
 import { Toast } from './Toast.js';
 
-// Performance tuning constants - optimized for 50MB+ files
-const BATCH_SIZE = 250; // Number of nodes to render per animation frame (increased for faster loading)
-const PAGE_SIZE = 1000; // Number of nodes to render before showing "Show More" (increased to reduce pauses)
-const LARGE_OBJECT_THRESHOLD = 50; // Objects with more than this many items auto-collapse
-const DEEP_NESTING_THRESHOLD = 2; // Expand first 2 levels by default (root + immediate children)
+/**
+ * Performance tuning constants - optimized for 50MB+ files
+ * @see ../config.js for centralized configuration
+ */
+const BATCH_SIZE = 250;
+const PAGE_SIZE = 1000;
+const LARGE_OBJECT_THRESHOLD = 50;
+const DEEP_NESTING_THRESHOLD = 2;
 
+/**
+ * @typedef {'json' | 'yaml'} TreeMode
+ */
+
+/**
+ * @typedef {Object} TreeViewOptions
+ * @property {boolean} [expandAll] - Expand all nodes initially
+ * @property {number} [expandToLevel] - Expand to specific depth level
+ */
+
+/**
+ * Collapsible tree visualization for JSON/YAML data.
+ * Features lazy loading, batched rendering, and search highlighting.
+ */
 export class TreeView {
+    /**
+     * Creates a new TreeView instance.
+     *
+     * @param {any} data - The data to visualize
+     * @param {string} [searchQuery=''] - Initial search query for highlighting
+     * @param {TreeMode} [mode='json'] - Display mode ('json' or 'yaml')
+     * @param {TreeViewOptions} [options={}] - Configuration options
+     */
     constructor(data, searchQuery = '', mode = 'json', options = {}) {
+        /** @type {any} */
         this.data = data;
+        /** @type {string} @private */
         this._searchQuery = searchQuery.toLowerCase();
-        this.mode = mode; // 'json' or 'yaml'
+        /** @type {TreeMode} */
+        this.mode = mode;
+        /** @type {TreeViewOptions} */
         this.options = options;
-        this.renderId = 0; // Track render sessions for cancellation
+        /** @type {number} Track render sessions for cancellation */
+        this.renderId = 0;
+        /** @type {Set<string>|undefined} Paths to expand during search */
+        this.expandedPaths = undefined;
+        /** @type {number|undefined} Current search operation ID */
+        this.currentSearchId = undefined;
+
+        /** @type {HTMLDivElement} */
         this.element = document.createElement('div');
         this.element.className = 'jv-tree';
         if (this.mode === 'yaml') {
             this.element.classList.add('jv-yaml-mode');
         }
         this.renderBatch(this.data, this.element, '', 0, this.renderId);
-        
+
         if (this._searchQuery) {
             // Defer expansion to allow initial render to complete
             setTimeout(() => this.expandMatches(this._searchQuery), 0);

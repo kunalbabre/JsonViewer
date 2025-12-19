@@ -155,12 +155,13 @@ export class Toolbar {
                 e.stopPropagation();
                 levelMenu.style.display = levelMenu.style.display === 'none' ? 'flex' : 'none';
             };
-            
-            // Close menu when clicking outside
-            document.addEventListener('click', () => {
+
+            // Close menu when clicking outside - store reference for cleanup
+            this.levelMenuClickHandler = () => {
                 levelMenu.style.display = 'none';
-            });
-            
+            };
+            document.addEventListener('click', this.levelMenuClickHandler);
+
             levelDropdown.appendChild(levelBtn);
             levelDropdown.appendChild(levelMenu);
             toolsGroup.appendChild(levelDropdown);
@@ -222,6 +223,16 @@ export class Toolbar {
             this.matchCounter.textContent = 'No matches';
             this.matchCounter.style.display = 'block';
             if (this.navContainer) this.navContainer.style.display = 'none';
+        }
+    }
+
+    /**
+     * Clean up event listeners to prevent memory leaks.
+     */
+    destroy() {
+        if (this.levelMenuClickHandler) {
+            document.removeEventListener('click', this.levelMenuClickHandler);
+            this.levelMenuClickHandler = null;
         }
     }
 }

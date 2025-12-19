@@ -1,23 +1,77 @@
-import { Icons } from './Icons.js';
 import { Toast } from './Toast.js';
 
+/**
+ * @typedef {'json' | 'yaml'} EditorMode
+ */
+
+/**
+ * @typedef {Object} EditorViewOptions
+ * @property {EditorMode} [mode='json'] - Editor mode for syntax highlighting
+ * @property {boolean} [isRaw] - Raw mode (no syntax highlighting)
+ */
+
+/**
+ * @typedef {Object} EditorError
+ * @property {number} pos - Position in text where error occurred
+ * @property {string} message - Error message
+ */
+
+/**
+ * Syntax-highlighted code editor with line numbers, bracket matching, and folding.
+ * Uses a virtualized rendering approach for performance with large files.
+ */
 export class EditorView {
+    /**
+     * Creates a new EditorView instance.
+     *
+     * @param {any} data - Data to display (object for JSON, string for raw)
+     * @param {((newData: any) => void)|null} onUpdate - Callback when data changes
+     * @param {EditorViewOptions} [options={}] - Configuration options
+     */
     constructor(data, onUpdate, options = {}) {
+        /** @type {any} */
         this.data = data;
+        /** @type {((newData: any) => void)|null} */
         this.onUpdate = onUpdate;
+        /** @type {EditorViewOptions} */
         this.options = options;
-        this.mode = options.mode || 'json'; // 'json' or 'yaml'
-        this.content = ''; // Load async
+        /** @type {EditorMode} */
+        this.mode = options.mode || 'json';
+        /** @type {string} Content loaded async */
+        this.content = '';
+        /** @type {HTMLDivElement} */
         this.element = document.createElement('div');
         this.element.className = 'jv-editor-container';
-        
-        this.lineOffsets = null; // Will be Uint32Array
-        this.lineHeight = 21; // Matches CSS
-        this.version = 0; // Track content version
+
+        /** @type {Uint32Array|null} Line start offsets */
+        this.lineOffsets = null;
+        /** @type {number} Line height in pixels (matches CSS) */
+        this.lineHeight = 21;
+        /** @type {number} Content version for tracking updates */
+        this.version = 0;
+        /** @type {boolean} */
         this.isLoading = true;
-        this.pendingRequests = new Map(); // Track pending content
-        this.foldedLines = new Set(); // Track folded line numbers
-        this.foldRegions = new Map(); // Map of start line -> end line for fold regions
+        /** @type {Map<number, string>} Track pending content by version */
+        this.pendingRequests = new Map();
+        /** @type {Set<number>} Track folded line numbers */
+        this.foldedLines = new Set();
+        /** @type {Map<number, number>} Map of start line -> end line for fold regions */
+        this.foldRegions = new Map();
+        /** @type {Worker|null} */
+        this.worker = null;
+        /** @type {EditorError|null} */
+        this.error = null;
+        /** @type {number} */
+        this.lineCount = 0;
+        /** @type {number|undefined} */
+        this.currentActiveLine = undefined;
+        /** @type {Array<{start: number, end: number, isCurrent?: boolean}>} */
+        this.searchMatches = [];
+        /** @type {number|undefined} */
+        this.charWidth = undefined;
+        /** @type {number|null} Input debounce timer */
+        this.inputTimer = null;
+
         this.render();
     }
 
@@ -504,7 +558,7 @@ export class EditorView {
         // Update gutter classes
         const gutterLines = this.gutterContent.children;
         for (let i = 0; i < gutterLines.length; i++) {
-            const el = gutterLines[i];
+            const el = /** @type {HTMLElement} */ (gutterLines[i]);
             const l = parseInt(el.dataset.line);
             if (l === line) el.classList.add('active');
             else el.classList.remove('active');
@@ -950,7 +1004,7 @@ export class EditorView {
                 Toast.show('Formatted JSON');
             }
         } catch (e) {
-            Toast.show('Invalid JSON: ' + e.message);
+            Toast.show('Invalid JSON: ' + (e instanceof Error ? e.message : String(e)));
         }
     }
 
@@ -1038,17 +1092,15 @@ export class EditorView {
             this.content = minified;
             this.textarea.value = minified;
             
-            // Re-parse line offsets
+            // Re-parse line offsets via worker
             if (this.worker) {
                 this.version++;
                 this.worker.postMessage({ text: this.content, version: this.version });
-            } else {
-                this.buildLineOffsets(this.content);
             }
             
             Toast.show('JSON minified');
         } catch (e) {
-            Toast.show('Invalid JSON: ' + e.message);
+            Toast.show('Invalid JSON: ' + (e instanceof Error ? e.message : String(e)));
         }
     }
 }

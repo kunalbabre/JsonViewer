@@ -1,16 +1,16 @@
 const MAX_YAML_DEPTH = 50; // Maximum depth to prevent stack overflow
-const seenObjects = new WeakSet(); // Track circular references
 
 export function jsonToYaml(data) {
-    seenObjects.clear = function() { return new WeakSet(); }; // Reset for each conversion
+    // Create fresh WeakSet for each conversion to properly track circular refs
+    const seenObjects = new WeakSet();
     try {
-        return convert(data, 0);
+        return convert(data, 0, seenObjects);
     } catch (e) {
         return `# Error converting to YAML: ${e.message}`;
     }
 }
 
-function convert(data, indentLevel) {
+function convert(data, indentLevel, seenObjects) {
     // Prevent stack overflow
     if (indentLevel > MAX_YAML_DEPTH) {
         return '# Max depth exceeded';
@@ -46,7 +46,7 @@ function convert(data, indentLevel) {
         if (data.length === 0) return '[]';
 
         return data.map(item => {
-            const itemYaml = convert(item, indentLevel + 1);
+            const itemYaml = convert(item, indentLevel + 1, seenObjects);
             // If item is object, we need special handling to align the hyphen
             if (typeof item === 'object' && item !== null && !Array.isArray(item) && Object.keys(item).length > 0) {
                 return `${indent}- ${itemYaml.trimStart()}`;
@@ -59,16 +59,16 @@ function convert(data, indentLevel) {
         const keys = Object.keys(data);
         if (keys.length === 0) return '{}';
 
-        return keys.map((key, index) => {
+        return keys.map(key => {
             const value = data[key];
             const keyStr = key.match(/^[\w\d_]+$/) ? key : `"${key}"`;
 
             if (typeof value === 'object' && value !== null && Object.keys(value).length > 0) {
                 // Nested object or array
-                return `${indent}${keyStr}:\n${convert(value, indentLevel + 1)}`;
+                return `${indent}${keyStr}:\n${convert(value, indentLevel + 1, seenObjects)}`;
             } else {
                 // Primitive or empty
-                return `${indent}${keyStr}: ${convert(value, 0)}`;
+                return `${indent}${keyStr}: ${convert(value, 0, seenObjects)}`;
             }
         }).join('\n');
     }

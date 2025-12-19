@@ -62,13 +62,14 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage)
 }
 
 let currentModalCleanup = null;
+let currentModalViewer = null;
 
 function showModal(json, rawData) {
     // Cleanup existing modal if any
     if (currentModalCleanup) {
         currentModalCleanup();
     }
-    
+
     // Double check DOM just in case
     const existing = document.getElementById('jv-modal-root');
     if (existing) existing.remove();
@@ -80,13 +81,19 @@ function showModal(json, rawData) {
     // Handle Escape
     let escHandler;
     const closeModal = () => {
+        // Clean up viewer to prevent memory leaks
+        if (currentModalViewer?.destroy) {
+            currentModalViewer.destroy();
+        }
+        currentModalViewer = null;
+
         const m = document.getElementById('jv-modal-root');
         if (m) m.remove();
         document.body.style.overflow = originalOverflow;
         if (escHandler) document.removeEventListener('keydown', escHandler);
         currentModalCleanup = null;
     };
-    
+
     currentModalCleanup = closeModal;
 
     // Create Modal Container
@@ -142,13 +149,13 @@ function showModal(json, rawData) {
     // We need to ensure Viewer is loaded
     const options = { expandAll: true };
     if (typeof Viewer !== 'undefined') {
-        new Viewer(viewerRoot, json, rawData, options);
+        currentModalViewer = new Viewer(viewerRoot, json, rawData, options);
     } else {
         // Should be loaded by now, but just in case
         (async () => {
             const src = chrome.runtime.getURL('src/ui/Viewer.js');
             const module = await import(src);
-            new module.Viewer(viewerRoot, json, rawData, options);
+            currentModalViewer = new module.Viewer(viewerRoot, json, rawData, options);
         })();
     }
     
