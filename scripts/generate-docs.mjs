@@ -25,6 +25,7 @@ import fs from 'fs';
 import http from 'http';
 import { fileURLToPath } from 'url';
 import os from 'os';
+import { getSmallPromoHTML, getMarqueePromoHTML } from './promo-templates.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const extensionPath = path.resolve(__dirname, '..');
@@ -168,7 +169,11 @@ async function captureScreenshots() {
     async function screenshot(name, description) {
         const filename = `${name}.png`;
         const filepath = path.join(screenshotsDir, filename);
-        await page.screenshot({ path: filepath });
+        // Use clip to ensure exact dimensions
+        await page.screenshot({
+            path: filepath,
+            clip: { x: 0, y: 0, width: SCREENSHOT_SIZE.width, height: SCREENSHOT_SIZE.height }
+        });
         screenshots.push({ name, filename, description });
         console.log(`  ✓ Captured: ${filename}`);
     }
@@ -177,26 +182,36 @@ async function captureScreenshots() {
     async function storeScreenshot(name, description) {
         const filename = `${name}.png`;
         const filepath = path.join(storeAssetsDir, filename);
-        await page.screenshot({ path: filepath });
+        // Use clip to ensure exact 1280x800 dimensions required by Chrome Web Store
+        await page.screenshot({
+            path: filepath,
+            clip: { x: 0, y: 0, width: SCREENSHOT_SIZE.width, height: SCREENSHOT_SIZE.height }
+        });
         storeScreenshots.push({ name, filename, description, size: '1280x800' });
         console.log(`  ✓ Store screenshot: ${filename} (1280x800)`);
     }
 
-    // Capture promo tiles by resizing viewport
-    async function capturePromoTile(name, size, description) {
+    // Capture promo tiles using custom HTML templates
+    async function capturePromoTile(name, size, htmlContent, description) {
         const filename = `${name}.png`;
         const filepath = path.join(storeAssetsDir, filename);
 
-        // Resize viewport to promo tile size
-        await page.setViewportSize(size);
-        await page.waitForTimeout(500);
+        // Create a new page for the promo tile
+        const promoPage = await context.newPage();
+        await promoPage.setViewportSize(size);
 
-        await page.screenshot({ path: filepath });
+        // Set the HTML content directly
+        await promoPage.setContent(htmlContent);
+        await promoPage.waitForTimeout(500);
+
+        // Use clip to ensure exact dimensions required by Chrome Web Store
+        await promoPage.screenshot({
+            path: filepath,
+            clip: { x: 0, y: 0, width: size.width, height: size.height }
+        });
         console.log(`  ✓ Promo tile: ${filename} (${size.width}x${size.height})`);
 
-        // Restore original viewport
-        await page.setViewportSize(SCREENSHOT_SIZE);
-        await page.waitForTimeout(300);
+        await promoPage.close();
 
         return { name, filename, size: `${size.width}x${size.height}`, description };
     }
@@ -359,19 +374,25 @@ async function captureScreenshots() {
         }
 
         // ============================================
-        // PROMO TILES
+        // PROMO TILES (Custom designed templates)
         // ============================================
-        console.log('\n12. Promo tiles...');
+        console.log('\n12. Promo tiles (custom templates)...');
 
-        // Prepare best visual for promo (tree view expanded)
-        await page.click('.jv-nav-btn:has-text("Tree")');
-        await page.waitForTimeout(500);
+        // Small promo tile (440x280) - Custom branded design
+        await capturePromoTile(
+            'promo-small-440x280',
+            SMALL_PROMO_SIZE,
+            getSmallPromoHTML(),
+            'Small promo tile'
+        );
 
-        // Small promo tile (440x280)
-        await capturePromoTile('promo-small-440x280', SMALL_PROMO_SIZE, 'Small promo tile');
-
-        // Marquee promo tile (1400x560)
-        await capturePromoTile('promo-marquee-1400x560', MARQUEE_PROMO_SIZE, 'Marquee promo tile');
+        // Marquee promo tile (1400x560) - Full banner with viewer mock
+        await capturePromoTile(
+            'promo-marquee-1400x560',
+            MARQUEE_PROMO_SIZE,
+            getMarqueePromoHTML(),
+            'Marquee promo tile'
+        );
 
         // ============================================
         // SUMMARY
