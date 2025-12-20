@@ -1,7 +1,11 @@
 import { Icons } from './Icons.js';
 
+// Detect platform for keyboard shortcut display
+const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+const MOD_KEY = isMac ? '⌘' : 'Ctrl+';
+
 export class Toolbar {
-    constructor({ onSearch, onSearchNext, onViewChange, onThemeToggle, onCopy, onExpandAll, onCollapseAll, onExpandToLevel, onSave, onFormat, onApply, currentView, searchQuery, disabledViews = [] }) {
+    constructor({ onSearch, onSearchNext, onViewChange, onThemeToggle, onCopy, onExpandAll, onCollapseAll, onExpandToLevel, onSave, onFormat, onApply, currentView, searchQuery, disabledViews = [], onClose = null }) {
         this.element = document.createElement('div');
         this.element.className = 'jv-toolbar-container';
 
@@ -44,9 +48,19 @@ export class Toolbar {
         logo.textContent = 'JSON Viewer';
         rightGroup.appendChild(logo);
 
-        const themeBtn = this.createButton(Icons.theme, 'Toggle Theme', onThemeToggle);
+        const themeBtn = this.createButton(Icons.theme, 'Toggle Theme', onThemeToggle, '', `${MOD_KEY}T`);
         themeBtn.classList.add('jv-icon-only');
         rightGroup.appendChild(themeBtn);
+
+        // Optional close button (for modal context)
+        if (onClose) {
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'jv-btn jv-icon-only jv-close-btn';
+            closeBtn.innerHTML = Icons.close;
+            closeBtn.title = 'Close';
+            closeBtn.onclick = onClose;
+            rightGroup.appendChild(closeBtn);
+        }
 
         topBar.appendChild(rightGroup);
         this.element.appendChild(topBar);
@@ -66,9 +80,9 @@ export class Toolbar {
 
         const searchInput = document.createElement('input');
         searchInput.className = 'jv-search';
-        searchInput.placeholder = 'Find in document...';
+        searchInput.placeholder = `Find in document... (${MOD_KEY}F)`;
         searchInput.value = searchQuery || '';
-        searchInput.addEventListener('input', (e) => onSearch(e.target.value));
+        searchInput.addEventListener('input', (e) => onSearch(/** @type {HTMLInputElement} */ (e.target).value));
         searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -110,10 +124,10 @@ export class Toolbar {
         toolsGroup.className = 'jv-tools-group';
 
         if (onFormat) {
-            toolsGroup.appendChild(this.createButton(Icons.format, 'Format JSON', onFormat, 'Format'));
+            toolsGroup.appendChild(this.createButton(Icons.format, 'Format JSON', onFormat, 'Format', `Alt+Shift+F`));
         }
         if (onApply) {
-            toolsGroup.appendChild(this.createButton(Icons.save, 'Apply Changes', onApply, 'Apply'));
+            toolsGroup.appendChild(this.createButton(Icons.save, 'Apply Changes', onApply, 'Apply', `${MOD_KEY}Enter`));
             this.createSeparator(toolsGroup);
         }
 
@@ -172,24 +186,26 @@ export class Toolbar {
         }
 
         if (onCopy) {
-            toolsGroup.appendChild(this.createButton(Icons.copy, 'Copy to Clipboard', onCopy, 'Copy'));
+            toolsGroup.appendChild(this.createButton(Icons.copy, 'Copy to Clipboard', onCopy, 'Copy', `${MOD_KEY}C`));
         }
         if (onSave) {
-            toolsGroup.appendChild(this.createButton(Icons.save, 'Save to File', onSave, 'Save'));
+            toolsGroup.appendChild(this.createButton(Icons.save, 'Save to File', onSave, 'Save', `${MOD_KEY}S`));
         }
 
         actionBar.appendChild(toolsGroup);
         this.element.appendChild(actionBar);
     }
 
-    createButton(iconHtml, title, onClick, labelText = '') {
+    createButton(iconHtml, title, onClick, labelText = '', shortcut = '') {
         const btn = document.createElement('button');
         btn.className = 'jv-btn';
-        btn.title = title;
+        btn.title = shortcut ? `${title} (${shortcut})` : title;
+        // iconHtml is trusted (from Icons.js), but labelText could be user-derived
+        btn.innerHTML = iconHtml;
         if (labelText) {
-            btn.innerHTML = `${iconHtml} <span>${labelText}</span>`;
-        } else {
-            btn.innerHTML = iconHtml;
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = labelText;
+            btn.appendChild(labelSpan);
         }
         btn.onclick = onClick;
         return btn;

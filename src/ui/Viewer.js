@@ -17,14 +17,13 @@ import { Toast } from './Toast.js';
  * @property {boolean} [expandAll] - Expand all tree nodes on load
  * @property {number} [expandToLevel] - Expand tree to specific depth level
  * @property {(view: ViewMode) => void} [onViewChange] - Callback when view mode changes
+ * @property {() => void} [onClose] - Close button callback (for modal context)
  */
 
 /**
- * @typedef {Object} SearchMatch
- * @property {number} [start] - Start index for text matches
- * @property {number} [end] - End index for text matches
- * @property {HTMLElement} [element] - DOM element for element matches
- * @property {boolean} [isCurrent] - Whether this is the current highlighted match
+ * Search match can be either a DOM element (for tree/schema views)
+ * or a position object (for editor/raw view)
+ * @typedef {HTMLElement | {start: number, end: number, element?: HTMLElement, isCurrent?: boolean}} SearchMatch
  */
 
 /**
@@ -62,7 +61,10 @@ export class Viewer {
         /** @type {((e: KeyboardEvent) => void)|null} */
         this.keydownHandler = null;
 
-        /** @type {Object<ViewMode, HTMLElement>} Cache rendered views for fast switching */
+        /**
+         * Cache rendered views for fast switching
+         * @type {Object<ViewMode, HTMLDivElement & {_treeView?: TreeView, _editorView?: EditorView, _schemaView?: SchemaView, _yamlView?: YamlView}>}
+         */
         this.viewCache = {};
 
         /** @type {TreeView|null} */
@@ -75,6 +77,15 @@ export class Viewer {
         this.yamlView = null;
         /** @type {Toolbar|null} */
         this.toolbar = null;
+
+        /** @type {string|null} Pre-formatted JSON string for editor */
+        this.formattedJson = null;
+        /** @type {boolean} Whether formatting is in progress */
+        this.isFormatting = false;
+        /** @type {string|null} Pre-converted YAML string */
+        this.yamlString = null;
+        /** @type {boolean} Whether YAML conversion is in progress */
+        this.isConvertingYaml = false;
 
         // Detect theme preference from storage, then system preference
         let storedTheme = null;
@@ -99,6 +110,155 @@ export class Viewer {
 
         this.renderStructure();
         this.setupKeyboardShortcuts();
+
+        // Start parallel pre-processing immediately for faster tab switching
+        this.startParallelPreprocessing();
+
+        // Pre-build other views in the background for faster tab switching
+        this.prebuildViewsInBackground();
+    }
+
+    /**
+     * Start pre-processing data in parallel for Editor and YAML views
+     * This runs immediately when viewer loads to prepare data before tabs are clicked
+     */
+    startParallelPreprocessing() {
+        // Skip for invalid JSON or very large files
+        if (this.options.isInvalid) return;
+        if (this.rawData.length > 50000000) return; // Skip for files > 50MB
+
+        // Check if already formatted
+        const isFormatted = this.rawData.includes('\n  ') || this.rawData.includes('\n\t');
+
+        // Pre-format JSON for editor if needed
+        if (!isFormatted && this.rawData.length > 1000) {
+            this.isFormatting = true;
+            this.formatJsonInBackground(this.rawData);
+        } else {
+            this.formattedJson = this.rawData;
+        }
+
+        // Pre-convert to YAML in background (skip for very large files)
+        if (this.rawData.length < 5000000) { // Only for files < 5MB
+            this.isConvertingYaml = true;
+            this.convertYamlInBackground();
+        }
+    }
+
+    /**
+     * Format JSON in background using chunked processing
+     * @param {string} rawStr - Raw JSON string
+     */
+    formatJsonInBackground(rawStr) {
+        const result = [];
+        let indent = 0;
+        let inString = false;
+        let escaped = false;
+        let pos = 0;
+        const len = rawStr.length;
+        const chunkSize = 200000; // 200KB chunks for faster processing
+
+        const processChunk = () => {
+            const endPos = Math.min(pos + chunkSize, len);
+
+            while (pos < endPos) {
+                const char = rawStr[pos];
+
+                if (escaped) {
+                    result.push(char);
+                    escaped = false;
+                    pos++;
+                    continue;
+                }
+
+                if (char === '\\' && inString) {
+                    result.push(char);
+                    escaped = true;
+                    pos++;
+                    continue;
+                }
+
+                if (char === '"') {
+                    inString = !inString;
+                    result.push(char);
+                    pos++;
+                    continue;
+                }
+
+                if (inString) {
+                    result.push(char);
+                    pos++;
+                    continue;
+                }
+
+                switch (char) {
+                    case '{':
+                    case '[':
+                        result.push(char);
+                        indent++;
+                        result.push('\n');
+                        result.push('  '.repeat(indent));
+                        break;
+                    case '}':
+                    case ']':
+                        indent--;
+                        result.push('\n');
+                        result.push('  '.repeat(indent));
+                        result.push(char);
+                        break;
+                    case ',':
+                        result.push(char);
+                        result.push('\n');
+                        result.push('  '.repeat(indent));
+                        break;
+                    case ':':
+                        result.push(': ');
+                        break;
+                    case ' ':
+                    case '\t':
+                    case '\n':
+                    case '\r':
+                        break;
+                    default:
+                        result.push(char);
+                }
+                pos++;
+            }
+
+            if (pos < len) {
+                setTimeout(processChunk, 0);
+            } else {
+                this.formattedJson = result.join('');
+                this.isFormatting = false;
+                console.log('JSON Viewer: Pre-formatting complete');
+            }
+        };
+
+        setTimeout(processChunk, 10);
+    }
+
+    /**
+     * Convert to YAML in background
+     */
+    async convertYamlInBackground() {
+        try {
+            // Dynamic import to avoid loading yaml utils if not needed
+            const { jsonToYaml } = await import('../utils/yaml.js');
+
+            // Use setTimeout to not block initial render
+            setTimeout(() => {
+                try {
+                    this.yamlString = jsonToYaml(this.data);
+                    this.isConvertingYaml = false;
+                    console.log('JSON Viewer: YAML pre-conversion complete');
+                } catch (e) {
+                    console.warn('JSON Viewer: YAML pre-conversion failed:', e);
+                    this.isConvertingYaml = false;
+                }
+            }, 50);
+        } catch (e) {
+            this.isConvertingYaml = false;
+        }
     }
 
     renderStructure() {
@@ -132,7 +292,8 @@ export class Viewer {
             onApply: this.currentView === 'editor' ? () => this.editorView?.applyChanges() : null,
             currentView: this.currentView,
             searchQuery: this.searchQuery,
-            disabledViews: this.options.isInvalid ? ['tree', 'schema', 'yaml', 'grid'] : []
+            disabledViews: this.options.isInvalid ? ['tree', 'schema', 'yaml', 'grid'] : [],
+            onClose: this.options.onClose || null
         });
         this.toolbarContainer.appendChild(this.toolbar.element);
     }
@@ -144,13 +305,14 @@ export class Viewer {
     }
 
     renderContent() {
-        // Hide all existing views and save state
-        Array.from(this.contentContainer.children).forEach(child => {
+        // Hide all existing views
+        Array.from(this.contentContainer.children).forEach(el => {
+            /** @type {HTMLElement & {_editorView?: EditorView}} */
+            const child = /** @type {HTMLElement & {_editorView?: EditorView}} */ (el);
             if (child.style.display !== 'none') {
-                // Save scroll state for editor
-                if (child.classList.contains('jv-editor-container')) {
-                    const textarea = child.querySelector('textarea');
-                    if (textarea) child._savedScrollTop = textarea.scrollTop;
+                // Pause editor processing before hiding
+                if (child.classList.contains('jv-editor-container') && child._editorView) {
+                    child._editorView.pause();
                 }
                 child.style.display = 'none';
             }
@@ -183,23 +345,11 @@ export class Viewer {
             if (this.currentView === 'yaml') this.yamlView = viewElement._yamlView;
 
             // Show view
-            viewElement.style.display = 'flex'; // Most views use flex
+            viewElement.style.display = 'flex';
 
-            // Restore scroll state for editor
-            if (this.currentView === 'editor' && viewElement._savedScrollTop !== undefined) {
-                const textarea = viewElement.querySelector('textarea');
-                if (textarea) {
-                    textarea.scrollTop = viewElement._savedScrollTop;
-                    // Trigger scroll handler to update virtualization
-                    if (this.editorView) {
-                        this.editorView.handleScroll();
-                        // Double check after layout to ensure scroll is applied
-                        requestAnimationFrame(() => {
-                             textarea.scrollTop = viewElement._savedScrollTop;
-                             this.editorView.handleScroll();
-                        });
-                    }
-                }
+            // Resume editor processing
+            if (this.currentView === 'editor' && this.editorView) {
+                this.editorView.resume();
             }
         }
     }
@@ -219,7 +369,7 @@ export class Viewer {
             treeContainer.appendChild(this.treeView.element);
 
             container.appendChild(treeContainer);
-            container._treeView = this.treeView; // Store reference
+            /** @type {any} */ (container)._treeView = this.treeView; // Store reference
 
             viewElement = container;
 
@@ -229,10 +379,15 @@ export class Viewer {
             }
 
         } else if (viewName === 'editor') {
+            // For valid JSON, use pre-formatted string if available
+            // This makes editor tab instant when clicked
             const dataToUse = this.options.isInvalid ? this.rawData : this.data;
+            // Use pre-formatted JSON if available, otherwise fall back to raw
+            const rawStringToUse = this.options.isInvalid ? null : (this.formattedJson || this.rawData);
             const editor = new EditorView(dataToUse, (newData) => {
                 this.data = newData;
                 this.rawData = JSON.stringify(newData, null, 2);
+                this.formattedJson = this.rawData; // Update cached formatted
 
                 if (this.options.isInvalid) {
                     this.options.isInvalid = false;
@@ -244,10 +399,10 @@ export class Viewer {
                 this.contentContainer.innerHTML = '';
                 // Re-render current view
                 this.renderContent();
-            }, { isRaw: this.options.isInvalid });
+            }, { isRaw: this.options.isInvalid, rawString: rawStringToUse });
             this.editorView = editor;
             viewElement = editor.element;
-            viewElement._editorView = editor; // Store reference
+            /** @type {any} */ (viewElement)._editorView = editor; // Store reference
 
         } else if (viewName === 'raw') {
             const container = document.createElement('div');
@@ -288,13 +443,15 @@ export class Viewer {
             const schema = new SchemaView(this.data, this.searchQuery);
             this.schemaView = schema;
             viewElement = schema.element;
-            viewElement._schemaView = schema;
+            /** @type {any} */ (viewElement)._schemaView = schema;
 
         } else if (viewName === 'yaml') {
-            const yaml = new YamlView(this.data, this.searchQuery);
+            // Pass pre-converted YAML string if available for instant rendering
+            // Also pass rawData length so YamlView can skip conversion for large files
+            const yaml = new YamlView(this.data, this.searchQuery, this.yamlString, this.rawData.length);
             this.yamlView = yaml;
             viewElement = yaml.element;
-            viewElement._yamlView = yaml;
+            /** @type {any} */ (viewElement)._yamlView = yaml;
         }
 
         return viewElement;
@@ -377,12 +534,6 @@ export class Viewer {
             if (this.treeView) {
                 this.treeView.searchQuery = lowerQuery;
             }
-            if (this.schemaView && this.schemaView.treeView) {
-                this.schemaView.treeView.searchQuery = lowerQuery;
-            }
-            if (this.yamlView && this.yamlView.treeView) {
-                this.yamlView.treeView.searchQuery = lowerQuery;
-            }
             
             this.performSearch(query);
         }, 300);
@@ -394,7 +545,8 @@ export class Viewer {
         // Fast search - just update highlights without re-rendering
         if (!query) {
             // Clear all highlights
-            document.querySelectorAll('.jv-highlight, .jv-highlight-current').forEach(el => {
+            document.querySelectorAll('.jv-highlight, .jv-highlight-current').forEach(e => {
+                const el = /** @type {HTMLElement} */ (e);
                 el.style.backgroundColor = '';
                 el.style.color = '';
                 el.classList.remove('jv-highlight', 'jv-highlight-current');
@@ -421,14 +573,16 @@ export class Viewer {
         // Only remove highlights from the current view to avoid clearing state of other views
         const currentViewElement = this.viewCache[this.currentView];
         if (currentViewElement) {
-            currentViewElement.querySelectorAll('.jv-highlight, .jv-highlight-current').forEach(el => {
+            currentViewElement.querySelectorAll('.jv-highlight, .jv-highlight-current').forEach(e => {
+                const el = /** @type {HTMLElement} */ (e);
                 el.classList.remove('jv-highlight', 'jv-highlight-current');
                 el.style.backgroundColor = '';
                 el.style.color = '';
             });
         } else {
             // Fallback if view not found (shouldn't happen)
-            document.querySelectorAll('.jv-highlight, .jv-highlight-current').forEach(el => {
+            document.querySelectorAll('.jv-highlight, .jv-highlight-current').forEach(e => {
+                const el = /** @type {HTMLElement} */ (e);
                 el.classList.remove('jv-highlight', 'jv-highlight-current');
                 el.style.backgroundColor = '';
                 el.style.color = '';
@@ -504,7 +658,7 @@ export class Viewer {
                 // Map elements back to matches
                 const spans = backdrop.querySelectorAll('.jv-raw-highlight');
                 for (let i = 0; i < spans.length; i++) {
-                    if (matches[i]) matches[i].element = spans[i];
+                    if (matches[i]) /** @type {any} */ (matches[i]).element = spans[i];
                 }
                 
                 this.searchMatches = matches;
@@ -609,55 +763,33 @@ export class Viewer {
         // Handle Editor View
         if (this.currentView === 'editor' && this.editorView) {
             // Mark current match
-            this.searchMatches.forEach((m, i) => m.isCurrent = (i === this.currentMatchIndex));
-            this.editorView.setSearchMatches(this.searchMatches);
+            this.searchMatches.forEach((m, i) => /** @type {any} */ (m).isCurrent = (i === this.currentMatchIndex));
 
-            // Scroll to match
-            // We need to find the line number
-            const offsets = this.editorView.lineOffsets;
-            if (offsets) {
-                // Binary search for line
-                let low = 0, high = offsets.length - 1;
-                let line = 0;
-                while (low <= high) {
-                    const mid = Math.floor((low + high) / 2);
-                    if (offsets[mid] <= match.start) {
-                        line = mid;
-                        low = mid + 1;
-                    } else {
-                        high = mid - 1;
-                    }
-                }
-                
-                // Scroll textarea
-                const textarea = this.editorView.textarea;
-                const lineHeight = this.editorView.lineHeight;
-                const containerHeight = textarea.clientHeight;
-                
-                const scrollTarget = (line * lineHeight) - (containerHeight / 2);
-                textarea.scrollTop = Math.max(0, scrollTarget);
-            }
-            
+            // Scroll to match and update highlights
+            this.editorView.scrollToMatch(/** @type {{start: number, end: number}} */ (match));
+            this.editorView.setSearchMatches(/** @type {Array<{start: number, end: number}>} */ (this.searchMatches));
+
             this.toolbar.updateMatchCounter(this.currentMatchIndex + 1, this.searchMatches.length);
             return;
         }
 
         // Handle Raw View (Backdrop highlighting)
-        if (this.currentView === 'raw' && match.element) {
+        const rawMatch = /** @type {any} */ (match);
+        if (this.currentView === 'raw' && rawMatch.element) {
             const textarea = this.contentContainer.querySelector('textarea');
             const backdrop = this.contentContainer.querySelector('.jv-raw-backdrop');
-            
+
             // Remove current class from all highlights in backdrop
             const currentHighlights = backdrop.querySelectorAll('.jv-raw-highlight.current');
             currentHighlights.forEach(el => el.classList.remove('current'));
-            
+
             // Add current class to new match
-            match.element.classList.add('current');
-            
+            rawMatch.element.classList.add('current');
+
             if (textarea) {
                 // Calculate scroll position to center the match
                 // We can use the backdrop element's position relative to the container
-                const elementTop = match.element.offsetTop;
+                const elementTop = rawMatch.element.offsetTop;
                 const containerHeight = textarea.clientHeight;
                 
                 const scrollTarget = elementTop - (containerHeight / 2);
@@ -669,17 +801,17 @@ export class Viewer {
             return;
         }
 
-        // Remove current highlight from all
-        this.searchMatches.forEach(el => {
-            if (el.classList) {
-                el.classList.remove('jv-highlight-current');
-                el.style.backgroundColor = '';
-                el.style.color = '';
+        // Remove current highlight from all (only for DOM element matches)
+        this.searchMatches.forEach(match => {
+            if (match instanceof HTMLElement) {
+                match.classList.remove('jv-highlight-current');
+                match.style.backgroundColor = '';
+                match.style.color = '';
             }
         });
 
         // Highlight current match differently
-        const current = this.searchMatches[this.currentMatchIndex];
+        const current = /** @type {HTMLElement} */ (this.searchMatches[this.currentMatchIndex]);
         current.classList.add('jv-highlight-current');
         current.style.backgroundColor = ''; // Ensure inline style doesn't override class
         current.style.color = '';
@@ -692,7 +824,7 @@ export class Viewer {
                 if (toggler && !toggler.classList.contains('expanded')) {
                     // Expand this node
                     toggler.classList.add('expanded');
-                    const childrenContainer = parent.querySelector('.jv-children');
+                    const childrenContainer = /** @type {HTMLElement} */ (parent.querySelector('.jv-children'));
                     if (childrenContainer) {
                         childrenContainer.style.display = 'block';
                     }
@@ -800,8 +932,8 @@ export class Viewer {
         try {
             localStorage.setItem('json-viewer-theme', isDark ? 'dark' : 'light');
         } catch (e) {
-            // localStorage might not be available in all contexts
-            console.warn('Could not save theme preference:', e);
+            // localStorage might not be available in all contexts (e.g., cross-origin pages)
+            // Silently ignore - theme still works for current session
         }
     }
 
@@ -848,17 +980,115 @@ export class Viewer {
     setupKeyboardShortcuts() {
         // Store bound handler for cleanup
         this.keydownHandler = (e) => {
+            // Don't trigger shortcuts when typing in inputs
+            const target = /** @type {HTMLElement} */ (e.target);
+            const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
             if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
                 e.preventDefault();
                 try {
-                    const searchInput = this.root.querySelector('.jv-search');
+                    const searchInput = /** @type {HTMLElement} */ (this.root.querySelector('.jv-search'));
                     if (searchInput) searchInput.focus();
                 } catch (err) {
                     console.warn('Failed to focus search input:', err);
                 }
             }
+
+            // Copy shortcut (⌘C) - only when not in an input
+            if ((e.metaKey || e.ctrlKey) && e.key === 'c' && !isInput) {
+                // Only copy if no text is selected (otherwise let browser handle it)
+                const selection = window.getSelection();
+                if (!selection || selection.toString().length === 0) {
+                    e.preventDefault();
+                    this.copyToClipboard();
+                }
+            }
+
+            // Save shortcut (⌘S)
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                this.handleSave();
+            }
+
+            // Theme toggle shortcut (⌘T) - only when not in an input
+            if ((e.metaKey || e.ctrlKey) && e.key === 't' && !isInput) {
+                e.preventDefault();
+                this.toggleTheme();
+            }
+
+            // Format shortcut (Alt+Shift+F) - for Editor and Schema views
+            if (e.altKey && e.shiftKey && e.key === 'F') {
+                e.preventDefault();
+                if (this.currentView === 'editor' && this.editorView) {
+                    this.editorView.format();
+                } else if (this.currentView === 'schema' && this.schemaView?.editorView) {
+                    this.schemaView.editorView.format();
+                }
+            }
+
+            // Apply shortcut (⌘Enter / Ctrl+Enter) - for Editor view
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                if (this.editorView && this.currentView === 'editor') {
+                    this.editorView.applyChanges();
+                }
+            }
         };
         document.addEventListener('keydown', this.keydownHandler);
+    }
+
+    /**
+     * Pre-build views in the background for faster tab switching.
+     * Uses requestIdleCallback to avoid blocking the UI.
+     */
+    prebuildViewsInBackground() {
+        // Don't pre-build if data is invalid
+        if (this.options.isInvalid) return;
+
+        // Don't pre-build for large files (>1MB) - let user trigger on demand
+        if (this.rawData.length > 1000000) {
+            console.log('JSON Viewer: Skipping pre-build for large file');
+            return;
+        }
+
+        // List of views to pre-build (excluding current view and raw which is fast)
+        const viewsToPrebuild = ['editor', 'schema', 'yaml'].filter(v => v !== this.currentView);
+
+        const prebuildNext = () => {
+            if (viewsToPrebuild.length === 0) return;
+
+            const viewName = viewsToPrebuild.shift();
+            if (this.viewCache[viewName]) {
+                // Already cached, move to next
+                scheduleNext();
+                return;
+            }
+
+            try {
+                const viewElement = this.createView(viewName);
+                if (viewElement) {
+                    this.viewCache[viewName] = viewElement;
+                    viewElement.style.display = 'none';
+                    this.contentContainer.appendChild(viewElement);
+                }
+            } catch (e) {
+                console.warn(`Failed to pre-build ${viewName} view:`, e);
+            }
+
+            scheduleNext();
+        };
+
+        const scheduleNext = () => {
+            if (viewsToPrebuild.length === 0) return;
+            if (window.requestIdleCallback) {
+                requestIdleCallback(prebuildNext, { timeout: 5000 });
+            } else {
+                setTimeout(prebuildNext, 100);
+            }
+        };
+
+        // Start pre-building after a short delay to let the main view render first
+        setTimeout(scheduleNext, 500);
     }
 
     /**

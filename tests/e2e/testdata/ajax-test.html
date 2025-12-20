@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JSON Viewer DevTools Test - AJAX Calls</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 { color: #333; }
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #7C3AED;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover { background: #6D28D9; }
+        button.get { background: #10B981; }
+        button.get:hover { background: #059669; }
+        button.post { background: #3B82F6; }
+        button.post:hover { background: #2563EB; }
+        button.put { background: #F59E0B; }
+        button.put:hover { background: #D97706; }
+        button.delete { background: #EF4444; }
+        button.delete:hover { background: #DC2626; }
+        #log {
+            background: #1a1a1a;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .log-entry { margin: 5px 0; }
+        .log-entry.error { color: #f66; }
+        .log-entry.success { color: #0f0; }
+        .instructions {
+            background: #FEF3C7;
+            border-left: 4px solid #F59E0B;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>JSON Viewer DevTools Test</h1>
+
+    <div class="instructions">
+        <strong>Instructions:</strong>
+        <ol>
+            <li>Open DevTools (F12 or Cmd+Option+I)</li>
+            <li>Click the <strong>"JSON Viewer"</strong> tab in DevTools</li>
+            <li>Click the buttons below to make AJAX calls</li>
+            <li>Watch requests appear in the JSON Viewer panel</li>
+            <li>Click a request in the panel to view its JSON</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>GET Requests</h2>
+        <button class="get" onclick="fetchUsers()">GET /users (10 users)</button>
+        <button class="get" onclick="fetchPosts()">GET /posts (100 posts)</button>
+        <button class="get" onclick="fetchComments()">GET /comments (500 items)</button>
+        <button class="get" onclick="fetchTodos()">GET /todos (200 items)</button>
+        <button class="get" onclick="fetchAlbums()">GET /albums</button>
+    </div>
+
+    <div class="section">
+        <h2>POST / PUT / DELETE</h2>
+        <button class="post" onclick="createPost()">POST /posts (Create)</button>
+        <button class="put" onclick="updatePost()">PUT /posts/1 (Update)</button>
+        <button class="delete" onclick="deletePost()">DELETE /posts/1</button>
+    </div>
+
+    <div class="section">
+        <h2>Bulk Requests</h2>
+        <button onclick="fetchAll()">Make All Requests (9 calls)</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="section">
+        <h2>Request Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const API = 'https://jsonplaceholder.typicode.com';
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        async function fetchUsers() {
+            log('GET /users - Fetching...');
+            try {
+                const res = await fetch(`${API}/users`);
+                const data = await res.json();
+                log(`GET /users - OK (${data.length} users)`, 'success');
+            } catch (e) {
+                log(`GET /users - Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function fetchPosts() {
+            log('GET /posts - Fetching...');
+            try {
+                const res = await fetch(`${API}/posts`);
+                const data = await res.json();
+                log(`GET /posts - OK (${data.length} posts)`, 'success');
+            } catch (e) {
+                log(`GET /posts - Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function fetchComments() {
+            log('GET /comments - Fetching...');
+            try {
+                const res = await fetch(`${API}/comments`);
+                const data = await res.json();
+                log(`GET /comments - OK (${data.length} comments)`, 'success');
+            } catch (e) {
+                log(`GET /comments - Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function fetchTodos() {
+            log('GET /todos - Fetching...');
+            try {
+                const res = await fetch(`${API}/todos`);
+                const data = await res.json();
+                log(`GET /todos - OK (${data.length} todos)`, 'success');
+            } catch (e) {
+                log(`GET /todos - Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function fetchAlbums() {
+            log('GET /albums - Fetching...');
+            try {
+                const res = await fetch(`${API}/albums`);
+                const data = await res.json();
+                log(`GET /albums - OK (${data.length} albums)`, 'success');
+            } catch (e) {
+                log(`GET /albums - Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function createPost() {
+            log('POST /posts - Creating...');
+            try {
+                const res = await fetch(`${API}/posts`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        title: 'Test Post',
+                        body: 'This is a test post body',
+                        userId: 1
+                    }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                log(`POST /posts - Created (id: ${data.id})`, 'success');
+            } catch (e) {
+                log(`POST /posts - Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function updatePost() {
+            log('PUT /posts/1 - Updating...');
+            try {
+                const res = await fetch(`${API}/posts/1`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        id: 1,
+                        title: 'Updated Title',
+                        body: 'Updated body',
+                        userId: 1
+                    }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                log(`PUT /posts/1 - Updated (title: ${data.title})`, 'success');
+            } catch (e) {
+                log(`PUT /posts/1 - Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function deletePost() {
+            log('DELETE /posts/1 - Deleting...');
+            try {
+                const res = await fetch(`${API}/posts/1`, { method: 'DELETE' });
+                log(`DELETE /posts/1 - Deleted (status: ${res.status})`, 'success');
+            } catch (e) {
+                log(`DELETE /posts/1 - Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function fetchAll() {
+            log('Making all requests...');
+            await fetchUsers();
+            await fetchPosts();
+            await fetchComments();
+            await fetchTodos();
+            await fetchAlbums();
+            await createPost();
+            await updatePost();
+            await deletePost();
+            log('All requests completed!', 'success');
+        }
+    </script>
+</body>
+</html>

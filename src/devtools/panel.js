@@ -41,25 +41,26 @@ chrome.devtools.network.onNavigated.addListener(() => {
 });
 
 function setupSearch() {
-    const searchInput = document.getElementById('request-search');
-    const jsonFilter = document.getElementById('json-only-filter');
+    const searchInput = /** @type {HTMLInputElement} */ (document.getElementById('request-search'));
+    const jsonFilter = /** @type {HTMLInputElement} */ (document.getElementById('json-only-filter'));
 
     const filterRequests = () => {
         const query = searchInput ? searchInput.value.toLowerCase() : '';
         const jsonOnly = jsonFilter ? jsonFilter.checked : false;
-        
+
         const items = document.querySelectorAll('.jv-request-item');
-        
-        items.forEach(item => {
+
+        items.forEach(el => {
+            const item = /** @type {HTMLElement} */ (el);
             const method = item.querySelector('.jv-request-method').textContent.toLowerCase();
-            const url = item.querySelector('.jv-request-url').title.toLowerCase();
+            const url = /** @type {HTMLElement} */ (item.querySelector('.jv-request-url')).title.toLowerCase();
             const name = item.querySelector('.jv-request-url').textContent.toLowerCase();
             const status = item.querySelector('.jv-request-status').textContent.toLowerCase();
             const isJson = item.dataset.isJson === 'true';
-            
+
             const matchesText = !query || method.includes(query) || url.includes(query) || name.includes(query) || status.includes(query);
             const matchesType = !jsonOnly || isJson;
-            
+
             if (matchesText && matchesType) {
                 item.style.display = 'flex';
             } else {
@@ -168,18 +169,32 @@ function addRequestToList(request, content) {
     
     item.dataset.isJson = isJson;
 
-    item.innerHTML = `
-        <div style="display:flex;align-items:center;">
-            <span class="jv-request-method">${request.request.method}</span>
-            <span class="jv-request-url" title="${request.request.url}">${name}</span>
-        </div>
-        <div class="jv-request-status">${request.response.status} ${request.response.statusText}</div>
-    `;
+    // Build item content using DOM manipulation to prevent XSS
+    const row1 = document.createElement('div');
+    row1.style.cssText = 'display:flex;align-items:center;';
+
+    const methodSpan = document.createElement('span');
+    methodSpan.className = 'jv-request-method';
+    methodSpan.textContent = request.request.method;
+    row1.appendChild(methodSpan);
+
+    const urlSpan = document.createElement('span');
+    urlSpan.className = 'jv-request-url';
+    urlSpan.title = request.request.url;
+    urlSpan.textContent = name;
+    row1.appendChild(urlSpan);
+
+    const statusDiv = document.createElement('div');
+    statusDiv.className = 'jv-request-status';
+    statusDiv.textContent = `${request.response.status} ${request.response.statusText}`;
+
+    item.appendChild(row1);
+    item.appendChild(statusDiv);
 
     // Apply current filters
-    const searchInput = document.getElementById('request-search');
-    const jsonFilter = document.getElementById('json-only-filter');
-    
+    const searchInput = /** @type {HTMLInputElement} */ (document.getElementById('request-search'));
+    const jsonFilter = /** @type {HTMLInputElement} */ (document.getElementById('json-only-filter'));
+
     if (searchInput || jsonFilter) {
         const query = searchInput ? searchInput.value.toLowerCase() : '';
         const jsonOnly = jsonFilter ? jsonFilter.checked : false;
@@ -209,7 +224,11 @@ function addRequestToList(request, content) {
         // Load content
         request.getContent((content, encoding) => {
             if (chrome.runtime.lastError) {
-                root.innerHTML = `<div style="padding:20px;color:red;">Error loading content: ${chrome.runtime.lastError.message}</div>`;
+                root.innerHTML = '';
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = 'padding:20px;color:red;';
+                errorDiv.textContent = 'Error loading content: ' + chrome.runtime.lastError.message;
+                root.appendChild(errorDiv);
                 return;
             }
 

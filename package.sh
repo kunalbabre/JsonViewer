@@ -7,19 +7,26 @@ echo "Packaging JSON Viewer Extension..."
 # Remove old package if exists
 rm -f json-viewer-extension.zip
 
-# Create the package
+# Create the package (excluding dev/build files)
 zip -r json-viewer-extension.zip \
   manifest.json \
   src/ \
   icons/ \
   -x "*.DS_Store" \
   -x "*.git*" \
-  -x "test.html"
+  -x "*.d.ts" \
+  -x "*.map" \
+  -x "*.ts"
 
 echo "✓ Package created: json-viewer-extension.zip"
+
+# Show package contents for verification
+echo ""
+echo "Package contents:"
+unzip -l json-viewer-extension.zip | tail -n +4 | head -n -2
+
 echo ""
 echo "Next steps:"
-echo "1. Add icons to your extension (16x16, 48x48, 128x128)"
-echo "2. Update manifest.json with icon paths"
-echo "3. Upload to Chrome Web Store Developer Dashboard"
+echo "1. Verify the package contents above"
+echo "2. Upload to Chrome Web Store Developer Dashboard"
 echo "   https://chrome.google.com/webstore/devconsole"

@@ -5,20 +5,30 @@
 import { THEME_STORAGE_KEY } from '../config.js';
 
 /**
- * Creates a Web Worker from inline code string.
- * Handles blob URL creation and cleanup.
+ * Creates a Web Worker from an external file path.
+ * Uses chrome.runtime.getURL to comply with CSP restrictions.
  *
- * @param {string} code - The worker code as a string
- * @returns {{ worker: Worker, cleanup: () => void }} Worker instance and cleanup function
+ * @param {string} workerPath - Path to the worker file (e.g., 'src/workers/parse-worker.js')
+ * @returns {{ worker: Worker | null, cleanup: () => void }} Worker instance (or null if unavailable) and cleanup function
  */
-export function createWorkerFromCode(code) {
-    const blob = new Blob([code], { type: 'application/javascript' });
-    const blobURL = URL.createObjectURL(blob);
-    const worker = new Worker(blobURL);
+export function createWorker(workerPath) {
+    let worker = null;
+
+    try {
+        // Check if chrome.runtime is available
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+            const workerUrl = chrome.runtime.getURL(workerPath);
+            worker = new Worker(workerUrl);
+        }
+    } catch (e) {
+        // Worker creation failed, will return null
+        worker = null;
+    }
 
     const cleanup = () => {
-        worker.terminate();
-        URL.revokeObjectURL(blobURL);
+        if (worker) {
+            worker.terminate();
+        }
     };
 
     return { worker, cleanup };
@@ -101,15 +111,16 @@ export function escapeHtml(str) {
 /**
  * Debounces a function call.
  *
- * @template {(...args: any[]) => any} T
- * @param {T} fn - Function to debounce
+ * @param {(...args: any[]) => any} fn - Function to debounce
  * @param {number} delay - Delay in milliseconds
- * @returns {T & { cancel: () => void }} Debounced function with cancel method
+ * @returns {((...args: any[]) => void) & { cancel: () => void }} Debounced function with cancel method
  */
 export function debounce(fn, delay) {
+    /** @type {ReturnType<typeof setTimeout> | null} */
     let timeoutId = null;
 
-    const debounced = (...args) => {
+    /** @type {((...args: any[]) => void) & { cancel: () => void }} */
+    const debounced = /** @type {any} */ ((...args) => {
         if (timeoutId) {
             clearTimeout(timeoutId);
         }
@@ -117,7 +128,7 @@ export function debounce(fn, delay) {
             fn(...args);
             timeoutId = null;
         }, delay);
-    };
+    });
 
     debounced.cancel = () => {
         if (timeoutId) {

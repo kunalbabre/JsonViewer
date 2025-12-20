@@ -1,3 +1,19 @@
+// Simple notification function (used before Toast is available)
+function showNotification(message, isError = false) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed; top: 20px; right: 20px; z-index: 2147483647;
+        padding: 12px 20px; border-radius: 8px; font-family: system-ui, sans-serif;
+        font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        background: ${isError ? '#fee2e2' : '#f0fdf4'};
+        color: ${isError ? '#dc2626' : '#166534'};
+        border: 1px solid ${isError ? '#fca5a5' : '#86efac'};
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 4000);
+}
+
 // Simple JSON detection logic
 function isJSON(text) {
     if (!text) return false;
@@ -48,16 +64,22 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage)
                 const text = request.content.trim();
                 // Basic validation
                 if (!text.startsWith('{') && !text.startsWith('[')) {
-                    alert('Selected text does not look like JSON');
-                    return;
+                    showNotification('Selected text does not look like JSON', true);
+                    sendResponse({ success: false });
+                    return true;
                 }
-                
+
                 const json = JSON.parse(text);
                 showModal(json, text);
+                sendResponse({ success: true });
             } catch (e) {
-                alert('Invalid JSON: ' + e.message);
+                showNotification('Invalid JSON: ' + e.message, true);
+                sendResponse({ success: false, error: e.message });
             }
+            return true;
         }
+        sendResponse({ success: true });
+        return true;
     });
 }
 
@@ -109,13 +131,6 @@ function showModal(json, rawData) {
     // Modal Content
     const content = document.createElement('div');
     content.className = 'jv-modal-content';
-    
-    // Close Button
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'jv-modal-close';
-    closeBtn.innerHTML = '&times;';
-    closeBtn.onclick = () => closeModal();
-    content.appendChild(closeBtn);
 
     // Viewer Container
     const viewerRoot = document.createElement('div');
@@ -147,9 +162,9 @@ function showModal(json, rawData) {
 
     // Initialize Viewer
     // We need to ensure Viewer is loaded
-    const options = { expandAll: true };
-    if (typeof Viewer !== 'undefined') {
-        currentModalViewer = new Viewer(viewerRoot, json, rawData, options);
+    const options = { expandAll: true, onClose: () => closeModal() };
+    if (typeof window.Viewer !== 'undefined') {
+        currentModalViewer = new window.Viewer(viewerRoot, json, rawData, options);
     } else {
         // Should be loaded by now, but just in case
         (async () => {
@@ -224,10 +239,10 @@ function injectViewButton(element, jsonText) {
 }
 
 // Polyfill for requestIdleCallback
-const requestIdleCallback = window.requestIdleCallback || function(cb) {
+const idleCallback = window.requestIdleCallback || function(cb) {
     return setTimeout(() => {
         const start = Date.now();
-        cb({ 
+        cb({
             didTimeout: false,
             timeRemaining: () => Math.max(0, 50 - (Date.now() - start))
         });
@@ -242,11 +257,12 @@ function scanForJsonCodeBlocks() {
         codeBlockObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    const element = entry.target;
-                    
+                    /** @type {HTMLElement} */
+                    const element = /** @type {HTMLElement} */ (entry.target);
+
                     // Stop observing once processed
                     codeBlockObserver.unobserve(element);
-                    
+
                     if (element.dataset.jvProcessed) return;
                     if (element.closest('#json-viewer-root') || element.closest('#jv-modal-root')) return;
                     
@@ -254,7 +270,7 @@ function scanForJsonCodeBlocks() {
                     // Quick check before expensive parse
                     if (text.length > 2 && (text.trim().startsWith('{') || text.trim().startsWith('['))) {
                         // Defer parsing to idle time to avoid blocking scroll
-                        requestIdleCallback(() => {
+                        idleCallback(() => {
                             // Check again in case it was processed while waiting in queue (e.g. by parent PRE)
                             if (element.dataset.jvProcessed) return;
 
@@ -263,7 +279,7 @@ function scanForJsonCodeBlocks() {
                                 element.dataset.jvProcessed = 'true';
                                 // Mark children code blocks as processed too
                                 if (element.tagName === 'PRE') {
-                                    element.querySelectorAll('code').forEach(c => c.dataset.jvProcessed = 'true');
+                                    element.querySelectorAll('code').forEach(c => /** @type {HTMLElement} */ (c).dataset.jvProcessed = 'true');
                                 }
                             }
                         }, { timeout: 1000 });
@@ -337,7 +353,7 @@ function scanForJsonCodeBlocks() {
             }
             // 2. Check for Chrome/Firefox default view (Single PRE element wrapping the content)
             else if (document.body.children.length === 1 && document.body.firstElementChild.tagName === 'PRE') {
-                const text = document.body.firstElementChild.innerText.trim();
+                const text = /** @type {HTMLElement} */ (document.body.firstElementChild).innerText.trim();
                 if (isJSON(text)) {
                     content = text;
                     isRawJson = true;
@@ -374,59 +390,59 @@ function scanForJsonCodeBlocks() {
                     const loader = document.createElement('div');
                     loader.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-size:18px;color:#666;gap:10px;';
                     const sizeText = (content.length / 1024 / 1024).toFixed(2);
-                    loader.innerHTML = `
-                        <div>Loading large JSON file (${sizeText} MB)...</div>
-                        <div style="font-size:14px;color:#999;">This may take a moment</div>
-                    `;
+
+                    const loadingMsg = document.createElement('div');
+                    loadingMsg.textContent = `Loading large JSON file (${sizeText} MB)...`;
+                    loader.appendChild(loadingMsg);
+
+                    const subMsg = document.createElement('div');
+                    subMsg.style.cssText = 'font-size:14px;color:#999;';
+                    subMsg.textContent = 'This may take a moment';
+                    loader.appendChild(subMsg);
+
                     document.body.appendChild(loader);
                 }
 
                 // For very large files, use Web Worker if available
-                // Note: Worker code is inlined to avoid CSP issues in extension context
                 const parseJSON = (text) => {
                     return new Promise((resolve, reject) => {
                         if (isVeryLargeFile && typeof Worker !== 'undefined') {
                             // Use Web Worker for large files to avoid blocking UI
                             try {
-                                const workerCode = `
-                                    self.onmessage = function(e) {
-                                        try {
-                                            const parsed = JSON.parse(e.data);
-                                            self.postMessage({ success: true, data: parsed });
-                                        } catch (error) {
-                                            self.postMessage({ success: false, error: error.message });
-                                        }
-                                    };
-                                `;
-                                const blob = new Blob([workerCode], { type: 'application/javascript' });
-                                const blobURL = URL.createObjectURL(blob);
-                                const worker = new Worker(blobURL);
-                                
+                                // Check if chrome.runtime is available
+                                if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) {
+                                    // No chrome.runtime, fall back to main thread
+                                    resolve(JSON.parse(text));
+                                    return;
+                                }
+
+                                const workerUrl = chrome.runtime.getURL('src/workers/parse-worker.js');
+                                const worker = new Worker(workerUrl);
+
                                 worker.onmessage = (e) => {
                                     worker.terminate();
-                                    URL.revokeObjectURL(blobURL); // Clean up blob URL
                                     if (e.data.success) {
                                         resolve(e.data.data);
                                     } else {
                                         reject(new Error(e.data.error));
                                     }
                                 };
-                                
-                                worker.onerror = (error) => {
-                                    console.warn('JSON Viewer: Worker failed, falling back to main thread', error.message);
+
+                                worker.onerror = (err) => {
+                                    // Worker failed (likely CSP), fall back to main thread
+                                    console.warn('JSON Viewer: Parse worker failed, falling back to main thread:', err);
                                     worker.terminate();
-                                    URL.revokeObjectURL(blobURL); // Clean up blob URL
-                                    // Fallback to main thread
                                     try {
                                         resolve(JSON.parse(text));
                                     } catch (e) {
                                         reject(e);
                                     }
                                 };
-                                
+
                                 worker.postMessage(text);
                             } catch (e) {
                                 // Fallback to main thread if Worker creation fails
+                                console.warn('JSON Viewer: Worker creation failed, falling back to main thread:', e);
                                 try {
                                     resolve(JSON.parse(text));
                                 } catch (parseError) {
@@ -472,7 +488,11 @@ function scanForJsonCodeBlocks() {
                         console.error('JSON Viewer: Failed to parse JSON', e);
                         // If we showed a loader, we should probably show an error now
                         if (isLargeFile) {
-                            document.body.innerHTML = `<div style="padding: 20px; color: red;">Failed to parse JSON: ${e.message}</div>`;
+                            document.body.innerHTML = '';
+                            const errorDiv = document.createElement('div');
+                            errorDiv.style.cssText = 'padding: 20px; color: red;';
+                            errorDiv.textContent = 'Failed to parse JSON: ' + e.message;
+                            document.body.appendChild(errorDiv);
                         }
                     }
                 }, isLargeFile ? 100 : 0);

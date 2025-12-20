@@ -1,5 +1,9 @@
 const MAX_YAML_DEPTH = 50; // Maximum depth to prevent stack overflow
 
+// Protect against prototype pollution
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const isSafeKey = (key) => !UNSAFE_KEYS.has(key);
+
 export function jsonToYaml(data) {
     // Create fresh WeakSet for each conversion to properly track circular refs
     const seenObjects = new WeakSet();
@@ -56,7 +60,8 @@ function convert(data, indentLevel, seenObjects) {
     }
 
     if (typeof data === 'object') {
-        const keys = Object.keys(data);
+        // Filter out unsafe keys to prevent prototype pollution
+        const keys = Object.keys(data).filter(isSafeKey);
         if (keys.length === 0) return '{}';
 
         return keys.map(key => {

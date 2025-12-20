@@ -3,7 +3,7 @@ import { Toast } from './Toast.js';
 
 /**
  * Performance tuning constants - optimized for 50MB+ files
- * @see ../config.js for centralized configuration
+ * See config.js for centralized configuration
  */
 const BATCH_SIZE = 250;
 const PAGE_SIZE = 1000;
@@ -150,8 +150,9 @@ export class TreeView {
         // Expand visible nodes that are on the path
         const nodes = this.element.querySelectorAll('.jv-node');
         nodes.forEach(node => {
-            if (this.expandedPaths.has(node.dataset.path)) {
-                const toggler = node.querySelector('.jv-toggler');
+            const htmlNode = /** @type {HTMLElement} */ (node);
+            if (this.expandedPaths.has(htmlNode.dataset.path)) {
+                const toggler = /** @type {HTMLElement} */ (node.querySelector('.jv-toggler'));
                 if (toggler && !toggler.classList.contains('expanded')) {
                     toggler.click();
                 }
@@ -270,7 +271,7 @@ export class TreeView {
             };
             header.appendChild(toggler);
             header.onclick = (e) => {
-                if (!e.target.closest('.jv-actions')) {
+                if (!(/** @type {HTMLElement} */ (e.target)).closest('.jv-actions')) {
                     this.toggleNodeLazy(node, toggler, value, currentPath, depth);
                 }
             };

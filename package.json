@@ -1,23 +1,29 @@
 {
   "name": "json-viewer-extension",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Beautiful JSON viewer Chrome extension with Tree, Schema, YAML, and Raw views",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "node scripts/build.js",
     "build:prod": "node scripts/build.js --minify",
-    "package": "npm run build:prod && node scripts/package.js",
+    "package": "node scripts/package-release.mjs",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/",
+    "test:e2e": "node tests/e2e/editor-test.mjs",
+    "test:perf": "node tests/e2e/performance-test.mjs",
+    "test:popup": "PWDEBUG=1 node tests/e2e/popup-test.mjs",
+    "test:devtools": "node tests/e2e/devtools-test.mjs",
+    "test:full": "node tests/e2e/full-e2e-test.mjs",
+    "doc": "node scripts/generate-docs.mjs",
     "clean": "rm -rf dist/ *.zip"
   },
   "devDependencies": {
-    "@anthropic-ai/eslint-config": "^1.0.0",
     "@types/chrome": "^0.0.260",
     "eslint": "^8.57.0",
+    "playwright": "^1.40.0",
     "typescript": "^5.3.3"
   },
   "engines": {

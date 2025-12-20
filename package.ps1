@@ -40,8 +40,8 @@ foreach ($folder in $foldersToInclude) {
     }
 }
 
-# Remove unwanted files from temp directory
-Get-ChildItem $tempDir -Recurse -Include "*.DS_Store", ".git*", "test.html" | Remove-Item -Force -ErrorAction SilentlyContinue
+# Remove unwanted files from temp directory (dev/build files)
+Get-ChildItem $tempDir -Recurse -Include "*.DS_Store", ".git*", "*.d.ts", "*.map", "*.ts" | Remove-Item -Force -ErrorAction SilentlyContinue
 
 # Create the zip file
 Compress-Archive -Path "$tempDir\*" -DestinationPath $zipFile -Force
@@ -51,9 +51,17 @@ Remove-Item $tempDir -Recurse -Force
 
 Write-Host ""
 Write-Host "Package created: $zipFile" -ForegroundColor Green
+
+# Show package contents for verification
+Write-Host ""
+Write-Host "Package contents:" -ForegroundColor Cyan
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::OpenRead($zipFile)
+$zip.Entries | ForEach-Object { Write-Host "  $_" }
+$zip.Dispose()
+
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Cyan
-Write-Host "1. Add icons to your extension (16x16, 48x48, 128x128)"
-Write-Host "2. Update manifest.json with icon paths"
-Write-Host "3. Upload to Chrome Web Store Developer Dashboard"
+Write-Host "1. Verify the package contents above"
+Write-Host "2. Upload to Chrome Web Store Developer Dashboard"
 Write-Host "   https://chrome.google.com/webstore/devconsole"
