@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JSON Viewer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Beautiful JSON viewer with Tree, Schema, YAML, and Raw views.",
   "icons": {
     "128": "icons/icon128.png"

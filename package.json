@@ -1,6 +1,6 @@
 {
   "name": "json-viewer-extension",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Beautiful JSON viewer Chrome extension with Tree, Schema, YAML, and Raw views",
   "private": true,
   "type": "module",
