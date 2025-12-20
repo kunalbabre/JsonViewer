@@ -1,7 +1,7 @@
 # Chrome Web Store Submission Details
 
 Generated: 2025-12-20
-Version: 1.0.3
+Version: 1.0.2
 
 ---
 

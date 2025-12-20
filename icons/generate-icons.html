@@ -20,42 +20,29 @@
             display: flex;
             gap: 2rem;
             margin: 2rem 0;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
-        .icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 20%;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            color: white;
+        .icon-group {
             text-align: center;
         }
 
-        .icon-128 {
-            width: 128px;
-            height: 128px;
-            font-size: 64px;
+        canvas {
+            border: 1px solid #333;
+            border-radius: 8px;
         }
 
-        .icon-48 {
-            width: 48px;
-            height: 48px;
-            font-size: 24px;
-        }
-
-        .icon-16 {
-            width: 16px;
-            height: 16px;
-            font-size: 8px;
+        .size-label {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #888;
         }
 
         button {
             margin: 1rem;
             padding: 0.75rem 1.5rem;
-            background: #667eea;
+            background: #10b981;
             color: white;
             border: none;
             border-radius: 0.5rem;
@@ -64,7 +51,7 @@
         }
 
         button:hover {
-            background: #764ba2;
+            background: #059669;
         }
 
         .instructions {
@@ -84,33 +71,56 @@
             font-size: 1.2rem;
         }
 
-        ol {
-            margin-left: 1.5rem;
+        .preview-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #333;
+            border-radius: 8px;
         }
 
-        li {
-            margin: 0.5rem 0;
+        .preview-row.light {
+            background: #f0f0f0;
+        }
+
+        .preview-label {
+            font-size: 0.8rem;
+            color: #888;
         }
     </style>
 </head>
 
 <body>
     <h1>JSON Viewer Extension Icons</h1>
-    <p>Right-click each icon and "Save Image As..." to download</p>
+    <p>Bold brackets with syntax lines - optimized for visibility</p>
+
+    <button id="downloadAll" style="margin-bottom: 1rem;">Download All Icons</button>
 
     <div class="icon-container">
-        <div>
-            <canvas id="icon128" class="icon icon-128"></canvas>
-            <p style="text-align: center;">128x128</p>
+        <div class="icon-group">
+            <canvas id="icon128"></canvas>
+            <p class="size-label">128x128 (Store) @2x</p>
         </div>
-        <div>
-            <canvas id="icon48" class="icon icon-48"></canvas>
-            <p style="text-align: center;">48x48</p>
+        <div class="icon-group">
+            <canvas id="icon48"></canvas>
+            <p class="size-label">48x48 (Extension) @2x</p>
         </div>
-        <div>
-            <canvas id="icon16" class="icon icon-16"></canvas>
-            <p style="text-align: center;">16x16</p>
+        <div class="icon-group">
+            <canvas id="icon16"></canvas>
+            <p class="size-label">16x16 (Toolbar) @4x</p>
         </div>
+    </div>
+
+    <h2>Toolbar Preview</h2>
+    <div class="preview-row">
+        <canvas id="preview16dark"></canvas>
+        <span class="preview-label">Dark toolbar</span>
+    </div>
+    <div class="preview-row light">
+        <canvas id="preview16light"></canvas>
+        <span class="preview-label" style="color:#666;">Light toolbar</span>
     </div>
 
     <div class="instructions">
@@ -125,36 +135,44 @@
                     <li><code>icon16.png</code></li>
                 </ul>
             </li>
-            <li>Place them in the <code>icons/</code> folder</li>
+            <li>Replace the files in the <code>icons/</code> folder</li>
         </ol>
 
-        <h2>Alternative - Use Online Tools:</h2>
-        <p>You can also create icons using:</p>
+        <h2>Design Notes:</h2>
         <ul>
-            <li><a href="https://www.canva.com" target="_blank" style="color: #667eea;">Canva</a> - Free design tool
-            </li>
-            <li><a href="https://www.figma.com" target="_blank" style="color: #667eea;">Figma</a> - Professional design
-            </li>
+            <li>Teal/green gradient for developer-friendly feel</li>
+            <li>Bold brackets visible at 16px</li>
+            <li>Horizontal lines suggest code/syntax</li>
+            <li>Rounded corners for modern look</li>
         </ul>
-        <p>Just create a square with the <code>{}</code> symbol in a bold font on a gradient background!</p>
     </div>
 
     <script>
-        function drawIcon(canvasId, size) {
+        function drawIcon(canvasId, size, scale = 2) {
             const canvas = document.getElementById(canvasId);
             const ctx = canvas.getContext('2d');
 
-            // Set canvas size
-            canvas.width = size;
-            canvas.height = size;
+            // Set canvas to higher resolution for HD quality
+            canvas.width = size * scale;
+            canvas.height = size * scale;
+            canvas.style.width = size + 'px';
+            canvas.style.height = size + 'px';
+            ctx.scale(scale, scale);
 
-            // Create gradient background
+            // Enable high-quality rendering
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+
+            // Create gradient background (teal to dark blue)
             const gradient = ctx.createLinearGradient(0, 0, size, size);
-            gradient.addColorStop(0, '#667eea');
-            gradient.addColorStop(1, '#764ba2');
+            gradient.addColorStop(0, '#10b981');  // Emerald green
+            gradient.addColorStop(1, '#0d9488');  // Teal
 
             // Draw rounded rectangle background
-            const radius = size * 0.2;
+            const radius = size * 0.18;
             ctx.fillStyle = gradient;
             ctx.beginPath();
             ctx.moveTo(radius, 0);
@@ -169,18 +187,113 @@
             ctx.closePath();
             ctx.fill();
 
-            // Draw {} text
+            // Add subtle inner shadow/glow
+            ctx.shadowColor = 'rgba(0,0,0,0.2)';
+            ctx.shadowBlur = size * 0.05;
+            ctx.shadowOffsetY = size * 0.02;
+
+            // Draw brackets and lines
             ctx.fillStyle = 'white';
-            ctx.font = `bold ${size * 0.5}px "Courier New", monospace`;
-            ctx.textAlign = 'center';
+            ctx.shadowColor = 'transparent';
+
+            const padding = size * 0.15;
+            const bracketWidth = size * 0.18;
+            const lineHeight = size * 0.08;
+            const lineGap = size * 0.12;
+
+            // Left bracket {
+            ctx.font = `bold ${size * 0.55}px Arial, sans-serif`;
+            ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
-            ctx.fillText('{}', size / 2, size / 2);
+            ctx.fillText('{', padding, size * 0.5);
+
+            // Right bracket }
+            ctx.textAlign = 'right';
+            ctx.fillText('}', size - padding, size * 0.5);
+
+            // Draw syntax lines in the middle
+            const lineX = size * 0.38;
+            const lineW = size * 0.24;
+            const centerY = size * 0.5;
+
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+
+            // Top line
+            roundRect(ctx, lineX, centerY - lineGap - lineHeight/2, lineW, lineHeight, lineHeight/2);
+
+            // Middle line (shorter)
+            roundRect(ctx, lineX + size*0.05, centerY - lineHeight/2, lineW - size*0.1, lineHeight, lineHeight/2);
+
+            // Bottom line
+            roundRect(ctx, lineX, centerY + lineGap - lineHeight/2, lineW, lineHeight, lineHeight/2);
         }
 
-        // Draw all icons
-        drawIcon('icon128', 128);
-        drawIcon('icon48', 48);
-        drawIcon('icon16', 16);
+        function roundRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Draw all icons at high resolution
+        // 128px @ 2x = 256px actual, 48px @ 2x = 96px actual, 16px @ 4x = 64px actual
+        drawIcon('icon128', 128, 2);
+        drawIcon('icon48', 48, 2);
+        drawIcon('icon16', 16, 4);  // 4x for sharper small icon
+
+        // Draw previews
+        drawIcon('preview16dark', 16, 4);
+        drawIcon('preview16light', 16, 4);
+
+        // Function to download at correct final size
+        function downloadIcon(sourceCanvas, targetSize, filename) {
+            // Create a new canvas at the target size
+            const downloadCanvas = document.createElement('canvas');
+            downloadCanvas.width = targetSize;
+            downloadCanvas.height = targetSize;
+            const ctx = downloadCanvas.getContext('2d');
+
+            // Enable high-quality scaling
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            // Draw the high-res canvas scaled down to target size
+            ctx.drawImage(sourceCanvas, 0, 0, targetSize, targetSize);
+
+            // Download
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = downloadCanvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Add download buttons
+        const iconSizes = { icon128: 128, icon48: 48, icon16: 16 };
+        document.querySelectorAll('.icon-group').forEach(group => {
+            const canvas = group.querySelector('canvas');
+            const size = iconSizes[canvas.id];
+            const btn = document.createElement('button');
+            btn.textContent = 'Download';
+            btn.style.marginTop = '0.5rem';
+            btn.onclick = () => downloadIcon(canvas, size, canvas.id + '.png');
+            group.appendChild(btn);
+        });
+
+        // Download all button
+        document.getElementById('downloadAll').onclick = () => {
+            Object.entries(iconSizes).forEach(([id, size]) => {
+                const canvas = document.getElementById(id);
+                setTimeout(() => downloadIcon(canvas, size, id + '.png'), 100);
+            });
+        };
     </script>
 </body>
 

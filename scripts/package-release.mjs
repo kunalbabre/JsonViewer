@@ -4,13 +4,18 @@
  *
  * This script:
  * 1. Generates documentation and screenshots (npm run doc)
- * 2. Bumps the manifest version by 0.01 from last committed version
+ * 2. Bumps the manifest version by 0.01 from last committed version (unless --no-bump)
  * 3. Packages the extension using package.sh or package.ps1
  *
- * Run with: npm run package
+ * Run with:
+ *   npm run package    - bumps version and packages
+ *   npm run repackage  - packages with current version (no bump)
  */
 
 import { execSync, spawn } from 'child_process';
+
+// Check for --no-bump flag
+const noBump = process.argv.includes('--no-bump');
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -113,6 +118,7 @@ function getPackageScript() {
 async function main() {
     console.log('='.repeat(60));
     console.log('JSON Viewer - Release Packaging');
+    if (noBump) console.log('(Repackage mode - keeping current version)');
     console.log('='.repeat(60));
 
     // Step 1: Generate documentation
@@ -123,18 +129,27 @@ async function main() {
     }
     success('Documentation generated');
 
-    // Step 2: Bump version
-    log('\n📦 STEP 2: Bump Version');
-    const lastVersion = getLastCommittedVersion();
-    const newVersion = bumpVersion(lastVersion);
+    // Step 2: Bump version (skip if --no-bump)
+    let currentVersion;
+    if (noBump) {
+        log('\n📦 STEP 2: Version (skipping bump)');
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+        currentVersion = manifest.version;
+        console.log(`  Using current version: ${currentVersion}`);
+        success('Version unchanged');
+    } else {
+        log('\n📦 STEP 2: Bump Version');
+        const lastVersion = getLastCommittedVersion();
+        currentVersion = bumpVersion(lastVersion);
 
-    console.log(`  Last committed version: ${lastVersion}`);
-    console.log(`  New version: ${newVersion}`);
+        console.log(`  Last committed version: ${lastVersion}`);
+        console.log(`  New version: ${currentVersion}`);
 
-    const oldVersion = updateManifestVersion(newVersion);
-    updatePackageJsonVersion(newVersion);
+        const oldVersion = updateManifestVersion(currentVersion);
+        updatePackageJsonVersion(currentVersion);
 
-    success(`Version bumped: ${oldVersion} → ${newVersion}`);
+        success(`Version bumped: ${oldVersion} → ${currentVersion}`);
+    }
 
     // Step 3: Package extension
     log('\n🎁 STEP 3: Package Extension');
@@ -156,7 +171,7 @@ async function main() {
     console.log('\n' + '='.repeat(60));
     console.log('RELEASE PACKAGE READY');
     console.log('='.repeat(60));
-    success(`Version: ${newVersion}`);
+    success(`Version: ${currentVersion}`);
     success(`Package: json-viewer-extension.zip`);
 
     console.log('\nStore assets location:');
@@ -167,7 +182,7 @@ async function main() {
     console.log('\nNext steps:');
     console.log('  1. Review the generated screenshots');
     console.log('  2. Test the packaged extension');
-    console.log('  3. git add . && git commit -m "Release v' + newVersion + '"');
+    console.log('  3. git add . && git commit -m "Release v' + currentVersion + '"');
     console.log('  4. Upload to Chrome Web Store');
 }
 
