@@ -7,7 +7,24 @@ A high-performance Chrome extension that makes JSON readable, navigable, and edi
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green.svg)](https://chromewebstore.google.com/detail/json-viewer/cpjmnaccoabkopabenjobiimlppmmpjn)
 
-![JSON Viewer](docs/screenshots/01-tree-view.png)
+<a href="https://youtu.be/eDnQWJA0b0s">
+  <img src="https://img.youtube.com/vi/eDnQWJA0b0s/maxresdefault.jpg" alt="Watch Demo Video" width="100%">
+</a>
+
+<p align="center">
+  <a href="https://youtu.be/eDnQWJA0b0s">
+    <img src="https://img.shields.io/badge/▶_Watch_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch Demo">
+  </a>
+</p>
+
+## Contents
+
+- [Install](#install)
+- [Features](#features)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
+- [Privacy](#privacy)
+- [Development](#development)
+- [Contributing](#contributing)
 
 ---
 
@@ -175,58 +192,48 @@ JsonViewer/
 
 ### Scripts
 
+**Testing**
 | Command | Description |
 |---------|-------------|
-| `npm test` | Run all tests |
-| `npm run test:e2e` | Run editor E2E tests |
-| `npm run test:perf` | Run performance tests |
-| `npm run test:devtools` | Test DevTools panel |
-| `npm run test:full` | Run full E2E test suite |
-| `npm run doc` | Generate screenshots & documentation |
-| `npm run record -- --voice` | Record demo video with AI voiceover |
-| `npm run upload` | Upload demo video to YouTube |
-| `npm run package` | Bump version & package for Chrome Web Store |
-| `npm run repackage` | Package without version bump |
-| `npm run typecheck` | Run TypeScript type checking |
+| `npm test` | Run unit tests |
+| `npm run test:e2e` | Run E2E tests |
+| `npm run test:full` | Run full test suite |
+
+**Code Quality**
+| Command | Description |
+|---------|-------------|
+| `npm run typecheck` | TypeScript type checking |
 | `npm run lint` | Run ESLint |
-| `npm run lint:fix` | Auto-fix lint issues |
+
+**Documentation & Media**
+| Command | Description |
+|---------|-------------|
+| `npm run doc` | Generate screenshots |
+| `npm run record` | Record demo video |
+| `npm run upload` | Upload to YouTube |
+
+**Release**
+| Command | Description |
+|---------|-------------|
+| `npm run package` | Package for Chrome Web Store |
 | `npm run clean` | Remove build artifacts |
 
-### Demo Video Recording
+### Demo Video & YouTube Upload
+
+Record demo videos and upload to YouTube automatically:
 
 ```bash
-# Record with AI voiceover (requires .env with ELEVENLABS_API_KEY)
-npm run record -- --voice
-
-# Record with macOS voice (no API key needed)
-# Comment out ELEVENLABS_API_KEY in .env first
-npm run record -- --voice
-
-# Record without voice (subtitles only)
-npm run record
+npm run record              # Record with subtitles
+npm run record -- --voice   # Record with AI voiceover
+npm run upload              # Upload to YouTube
 ```
 
-### YouTube Upload
+**Prerequisites:** FFmpeg, Playwright (`npx playwright install msedge`)
 
-Upload recorded videos directly to YouTube:
-
-```bash
-# Upload with default settings (unlisted)
-npm run upload
-
-# Upload with custom title
-npm run upload -- --title "My Custom Title"
-
-# Upload as public
-npm run upload -- --public
-```
-
-**One-time setup:**
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a project and enable "YouTube Data API v3"
-3. Create OAuth 2.0 credentials (Desktop App type)
-4. Download the JSON and save as `youtube-client-secret.json` in project root
-5. First run will open browser for authorization
+See **[Video Guide](docs/VIDEO_GUIDE.md)** for complete setup instructions including:
+- ElevenLabs AI voice configuration
+- YouTube API OAuth setup
+- Troubleshooting
 
 ---
 
