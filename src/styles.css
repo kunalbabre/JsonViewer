@@ -208,8 +208,12 @@ body.dark-theme.json-viewer-active {
   padding: 8px 16px;
   border-radius: 8px;
   white-space: nowrap;
-  transition: all var(--duration-fast) var(--ease-out);
+  transition: color var(--duration-fast) var(--ease-out),
+              background var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
   position: relative;
+  z-index: 1;
+  isolation: isolate;
 }
 
 .jv-nav-btn:hover {
@@ -221,6 +225,7 @@ body.dark-theme.json-viewer-active {
   color: white;
   background: var(--accent);
   box-shadow: 0 2px 8px var(--accent-glow);
+  z-index: 2;
 }
 
 body.dark-theme .jv-nav-btn.active {

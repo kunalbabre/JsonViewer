@@ -276,6 +276,10 @@ export class Viewer {
     }
 
     renderToolbar() {
+        // Clean up old toolbar before destroying DOM to prevent memory leaks
+        if (this.toolbar?.destroy) {
+            this.toolbar.destroy();
+        }
         this.toolbarContainer.innerHTML = '';
         const showExpandCollapse = this.currentView === 'tree';
         this.toolbar = new Toolbar({
