@@ -65,3 +65,9 @@ temp/
 *.backup
 dist.bak/
 test_fs_check.txt
+
+# Generated video/audio assets (from npm run record)
+docs/video/*.mp4
+docs/video/*.webm
+docs/video/*.png
+docs/video/audio/

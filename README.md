@@ -175,22 +175,34 @@ JsonViewer/
 
 ### Scripts
 
+| Command | Description |
+|---------|-------------|
+| `npm test` | Run all tests |
+| `npm run test:e2e` | Run editor E2E tests |
+| `npm run test:perf` | Run performance tests |
+| `npm run test:devtools` | Test DevTools panel |
+| `npm run test:full` | Run full E2E test suite |
+| `npm run doc` | Generate screenshots & documentation |
+| `npm run record -- --voice` | Record demo video with AI voiceover |
+| `npm run package` | Bump version & package for Chrome Web Store |
+| `npm run repackage` | Package without version bump |
+| `npm run typecheck` | Run TypeScript type checking |
+| `npm run lint` | Run ESLint |
+| `npm run lint:fix` | Auto-fix lint issues |
+| `npm run clean` | Remove build artifacts |
+
+### Demo Video Recording
+
 ```bash
-npm test              # Run E2E tests
-npm run test:devtools # Test DevTools panel
-npm run doc           # Generate documentation & screenshots
-./package.sh          # Package for Chrome Web Store
-```
+# Record with AI voiceover (requires .env with ELEVENLABS_API_KEY)
+npm run record -- --voice
 
-### Testing
+# Record with macOS voice (no API key needed)
+# Comment out ELEVENLABS_API_KEY in .env first
+npm run record -- --voice
 
-```bash
-# Run all tests
-npm test
-
-# Test specific features
-node tests/e2e/editor-test.mjs
-node tests/e2e/devtools-test.mjs
+# Record without voice (subtitles only)
+npm run record
 ```
 
 ---

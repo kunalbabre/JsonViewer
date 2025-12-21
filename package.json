@@ -19,6 +19,7 @@
     "test:devtools": "node tests/e2e/devtools-test.mjs",
     "test:full": "node tests/e2e/full-e2e-test.mjs",
     "doc": "node scripts/generate-docs.mjs",
+    "record": "node scripts/record-demo.mjs",
     "clean": "rm -rf dist/ *.zip"
   },
   "devDependencies": {
