@@ -84,7 +84,8 @@ const MAC_VOICE = 'Samantha'; // Good quality built-in voice
 // Browser captures at lower resolution, scaled up to full HD for larger text
 const BROWSER_SIZE = { width: 1280, height: 720 }; // 720p capture - scales up for bigger text
 const FINAL_SIZE = { width: 1920, height: 1080 }; // Output at full HD
-const SIDEBAR_WIDTH = 520; // Sidebar overlaid on right side
+const SIDEBAR_WIDTH = 520; // Sidebar width (if enabled)
+const ENABLE_SIDEBAR = false; // Set to true to overlay branded sidebar on right
 
 // Voiceover scripts for each scene - two-person dialogue for natural feel
 // voice: 'host' = Rachel (narrator), 'dev' = Adam (developer)
@@ -1277,18 +1278,35 @@ async function recordDemo() {
             }
         }
 
-        // Step 2: Generate branded sidebar panel
-        generateSidebarImage(sidebarPath);
+        // Step 2: Either composite with sidebar or just scale to final size
+        if (ENABLE_SIDEBAR) {
+            // Generate branded sidebar panel
+            generateSidebarImage(sidebarPath);
 
-        // Step 3: Composite browser video + sidebar into final output
-        if (fs.existsSync(browserVideoPath) && fs.existsSync(sidebarPath)) {
-            const compositeSuccess = await compositeWithSidebar(browserVideoPath, sidebarPath, mp4Path);
+            // Composite browser video + sidebar into final output
+            if (fs.existsSync(browserVideoPath) && fs.existsSync(sidebarPath)) {
+                const compositeSuccess = await compositeWithSidebar(browserVideoPath, sidebarPath, mp4Path);
 
-            // Cleanup intermediate files
-            if (compositeSuccess) {
+                // Cleanup intermediate files
+                if (compositeSuccess) {
+                    try { fs.unlinkSync(rawVideoPath); } catch {}
+                    try { fs.unlinkSync(browserVideoPath); } catch {}
+                    try { fs.unlinkSync(sidebarPath); } catch {}
+                }
+            }
+        } else {
+            // No sidebar - just scale browser video to final size
+            console.log('\n🎬 Scaling video to final resolution...');
+            try {
+                execSync(`${FFMPEG} -y -i "${browserVideoPath}" -vf "scale=${FINAL_SIZE.width}:${FINAL_SIZE.height}" -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -c:a copy -movflags +faststart "${mp4Path}"`, { stdio: 'pipe' });
+                console.log('  ✓ Video scaled to full HD');
+                // Cleanup
                 try { fs.unlinkSync(rawVideoPath); } catch {}
                 try { fs.unlinkSync(browserVideoPath); } catch {}
-                try { fs.unlinkSync(sidebarPath); } catch {}
+            } catch (e) {
+                console.error('  ✗ Scaling failed:', e.message);
+                // Fall back to browser video
+                fs.renameSync(browserVideoPath, mp4Path);
             }
         }
 
@@ -1302,7 +1320,7 @@ async function recordDemo() {
             console.log(`  Resolution: ${FINAL_SIZE.width}x${FINAL_SIZE.height}`);
             console.log(`  Size: ${(mp4Stats.size / 1024 / 1024).toFixed(2)} MB`);
             console.log(`  Audio: ${audioTimeline.length > 0 ? 'Yes (' + audioTimeline.length + ' clips)' : 'No'}`);
-            console.log(`  Layout: Full HD browser with ${SIDEBAR_WIDTH}px sidebar overlay`);
+            console.log(`  Layout: ${ENABLE_SIDEBAR ? `Full HD with ${SIDEBAR_WIDTH}px sidebar` : 'Clean full HD (no sidebar)'}`);
             console.log('\n📺 Ready to upload to YouTube!');
         } else {
             console.log('\n⚠️  Final video creation failed.');

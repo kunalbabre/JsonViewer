@@ -2,121 +2,121 @@
   {
     "voiceKey": "intro",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/intro.mp3",
-    "startTime": 2127,
+    "startTime": 2655,
     "duration": 3996.6879999999996
   },
   {
     "voiceKey": "introReact",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/introReact.mp3",
-    "startTime": 6527,
+    "startTime": 7057,
     "duration": 2638.313
   },
   {
     "voiceKey": "treeView",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/treeView.mp3",
-    "startTime": 9569,
+    "startTime": 10100,
     "duration": 4414.688
   },
   {
     "voiceKey": "expandNodes",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/expandNodes.mp3",
-    "startTime": 14387,
+    "startTime": 14917,
     "duration": 3787.75
   },
   {
     "voiceKey": "editorView",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/editorView.mp3",
-    "startTime": 19536,
+    "startTime": 19981,
     "duration": 3761.625
   },
   {
     "voiceKey": "editorReact",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/editorReact.mp3",
-    "startTime": 24324,
+    "startTime": 24773,
     "duration": 3996.6879999999996
   },
   {
     "voiceKey": "schemaView",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/schemaView.mp3",
-    "startTime": 29334,
+    "startTime": 29792,
     "duration": 5328.938
   },
   {
     "voiceKey": "schemaReact",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/schemaReact.mp3",
-    "startTime": 35065,
+    "startTime": 35524,
     "duration": 5198.313
   },
   {
     "voiceKey": "yamlView",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/yamlView.mp3",
-    "startTime": 41287,
+    "startTime": 41737,
     "duration": 3160.813
   },
   {
     "voiceKey": "yamlReact",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/yamlReact.mp3",
-    "startTime": 44849,
+    "startTime": 45299,
     "duration": 3108.563
   },
   {
     "voiceKey": "search",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/search.mp3",
-    "startTime": 48975,
+    "startTime": 49427,
     "duration": 2768.938
   },
   {
     "voiceKey": "searchReact",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/searchReact.mp3",
-    "startTime": 53703,
+    "startTime": 54154,
     "duration": 4623.625
   },
   {
     "voiceKey": "levelControls",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/levelControls.mp3",
-    "startTime": 58986,
+    "startTime": 59439,
     "duration": 4022.813
   },
   {
     "voiceKey": "levelReact",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/levelReact.mp3",
-    "startTime": 66046,
+    "startTime": 66507,
     "duration": 3526.5
   },
   {
     "voiceKey": "copy",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/copy.mp3",
-    "startTime": 69976,
+    "startTime": 70436,
     "duration": 3291.375
   },
   {
     "voiceKey": "copyReact",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/copyReact.mp3",
-    "startTime": 74287,
+    "startTime": 74747,
     "duration": 1619.563
   },
   {
     "voiceKey": "theme",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/theme.mp3",
-    "startTime": 76309,
+    "startTime": 76769,
     "duration": 2115.875
   },
   {
     "voiceKey": "themeReact",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/themeReact.mp3",
-    "startTime": 80304,
+    "startTime": 80754,
     "duration": 2507.75
   },
   {
     "voiceKey": "outro",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/outro.mp3",
-    "startTime": 83216,
+    "startTime": 83664,
     "duration": 5511.813
   },
   {
     "voiceKey": "outroReact",
     "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/outroReact.mp3",
-    "startTime": 89131,
+    "startTime": 89579,
     "duration": 1802.4379999999999
   }
 ]
