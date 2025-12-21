@@ -1,0 +1,122 @@
+[
+  {
+    "voiceKey": "intro",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/intro.mp3",
+    "startTime": 1874,
+    "duration": 3996.6879999999996
+  },
+  {
+    "voiceKey": "introReact",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/introReact.mp3",
+    "startTime": 6273,
+    "duration": 2638.313
+  },
+  {
+    "voiceKey": "treeView",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/treeView.mp3",
+    "startTime": 9315,
+    "duration": 4414.688
+  },
+  {
+    "voiceKey": "expandNodes",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/expandNodes.mp3",
+    "startTime": 14134,
+    "duration": 3787.75
+  },
+  {
+    "voiceKey": "editorView",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/editorView.mp3",
+    "startTime": 19260,
+    "duration": 3761.625
+  },
+  {
+    "voiceKey": "editorReact",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/editorReact.mp3",
+    "startTime": 24050,
+    "duration": 3996.6879999999996
+  },
+  {
+    "voiceKey": "schemaView",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/schemaView.mp3",
+    "startTime": 29060,
+    "duration": 5328.938
+  },
+  {
+    "voiceKey": "schemaReact",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/schemaReact.mp3",
+    "startTime": 34793,
+    "duration": 5198.313
+  },
+  {
+    "voiceKey": "yamlView",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/yamlView.mp3",
+    "startTime": 41001,
+    "duration": 3160.813
+  },
+  {
+    "voiceKey": "yamlReact",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/yamlReact.mp3",
+    "startTime": 44565,
+    "duration": 3108.563
+  },
+  {
+    "voiceKey": "search",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/search.mp3",
+    "startTime": 48698,
+    "duration": 2768.938
+  },
+  {
+    "voiceKey": "searchReact",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/searchReact.mp3",
+    "startTime": 53426,
+    "duration": 4623.625
+  },
+  {
+    "voiceKey": "levelControls",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/levelControls.mp3",
+    "startTime": 58709,
+    "duration": 4022.813
+  },
+  {
+    "voiceKey": "levelReact",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/levelReact.mp3",
+    "startTime": 65761,
+    "duration": 3526.5
+  },
+  {
+    "voiceKey": "copy",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/copy.mp3",
+    "startTime": 69691,
+    "duration": 3291.375
+  },
+  {
+    "voiceKey": "copyReact",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/copyReact.mp3",
+    "startTime": 73989,
+    "duration": 1619.563
+  },
+  {
+    "voiceKey": "theme",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/theme.mp3",
+    "startTime": 76012,
+    "duration": 2115.875
+  },
+  {
+    "voiceKey": "themeReact",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/themeReact.mp3",
+    "startTime": 80000,
+    "duration": 2507.75
+  },
+  {
+    "voiceKey": "outro",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/outro.mp3",
+    "startTime": 82911,
+    "duration": 5511.813
+  },
+  {
+    "voiceKey": "outroReact",
+    "audioPath": "/Users/kunalbabre/code/JsonViewer/docs/video/audio/outroReact.mp3",
+    "startTime": 88827,
+    "duration": 1802.4379999999999
+  }
+]

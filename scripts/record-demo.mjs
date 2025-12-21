@@ -64,15 +64,17 @@ function loadEnvFile() {
 }
 loadEnvFile();
 
-// Check for --voice flag and ElevenLabs API key
+// Check for --voice and --remix flags
 const enableVoice = process.argv.includes('--voice');
+const remixMode = process.argv.includes('--remix');
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const useElevenLabs = enableVoice && ELEVENLABS_API_KEY;
 const useMacVoice = enableVoice && !ELEVENLABS_API_KEY && process.platform === 'darwin';
 
-// ElevenLabs voice settings
+// ElevenLabs voice settings - Two voices for natural dialogue
 // Voice options: 'pNInz6obpgDQGcFmaJgB' (Adam), '21m00Tcm4TlvDq8ikWAM' (Rachel), 'EXAVITQu4vr4xnSDxMaL' (Bella)
-const ELEVENLABS_VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel - natural female voice
+const VOICE_HOST = '21m00Tcm4TlvDq8ikWAM'; // Rachel - main narrator
+const VOICE_DEV = 'pNInz6obpgDQGcFmaJgB'; // Adam - developer reactions
 const ELEVENLABS_MODEL = 'eleven_multilingual_v2'; // Better quality model
 
 // macOS voice settings (use 'say -v ?' to see available voices)
@@ -80,23 +82,36 @@ const MAC_VOICE = 'Samantha'; // Good quality built-in voice
 
 // Video layout settings
 // Browser demo on left (1400px), branded sidebar on right (520px)
+// Browser fills full height for better use of space
 const BROWSER_SIZE = { width: 1400, height: 1080 };
 const FINAL_SIZE = { width: 1920, height: 1080 };
 const SIDEBAR_WIDTH = FINAL_SIZE.width - BROWSER_SIZE.width; // 520px
 
-// Voiceover scripts for each scene - developer-friendly and fun
+// Voiceover scripts for each scene - two-person dialogue for natural feel
+// voice: 'host' = Rachel (narrator), 'dev' = Adam (developer)
+// Alternating speakers throughout for engaging conversation
+// Using expressive punctuation and natural phrasing for ElevenLabs emotion
 const VOICEOVER = {
-    intro: "Hey developer! Tired of squinting at raw JSON blobs? Let's fix that.",
-    treeView: "Tree View. Expand, collapse, explore. Finally, JSON that doesn't hurt your eyes.",
-    expandNodes: "Click to dig deeper. No more scrolling through walls of curly braces.",
-    editorView: "Editor mode. Line numbers, syntax highlighting, and yes, it validates too. Your code review buddy.",
-    schemaView: "Schema View shows you what's what. Strings here, numbers there, booleans being dramatic as usual.",
-    yamlView: "YAML fans, we got you. One click and boom, instant conversion. No library needed.",
-    search: "Search as you type. Finding that one nested key? We'll highlight it for you.",
-    levelControls: "Level controls. Expand to depth 3, collapse to 1. Control your chaos.",
-    copy: "Copy to clipboard. Paste it into Postman, your tests, wherever. You're welcome.",
-    theme: "Dark mode, light mode. Because we all have our preferences. No judgment.",
-    outro: "JSON Viewer. Free, fast, and all local. Your data stays yours. Now go ship something!"
+    intro: { text: "Hey! Ever opened a JSON API response... and felt your eyes just glaze over?", voice: 'host' },
+    introReact: { text: "Ugh, ALL the time! Nested objects everywhere, it's a nightmare.", voice: 'dev' },
+    treeView: { text: "Well... Tree View makes it actually readable! Expand what you need, collapse the rest.", voice: 'host' },
+    expandNodes: { text: "Oh nice! Just click to explore. This is SO much better than raw JSON.", voice: 'dev' },
+    editorView: { text: "Need to edit something? Editor mode has line numbers AND syntax highlighting.", voice: 'host' },
+    editorReact: { text: "Oh wow, that's clean! I can actually see the structure now.", voice: 'dev' },
+    schemaView: { text: "And check this out... Schema View shows you the data types at a glance!", voice: 'host' },
+    schemaReact: { text: "Strings, numbers, booleans... all labeled! That's super handy for debugging.", voice: 'dev' },
+    yamlView: { text: "And for YAML fans? Instant conversion with just one click!", voice: 'host' },
+    yamlReact: { text: "Wait wait wait... it converts to YAML?! That's actually really useful!", voice: 'dev' },
+    search: { text: "Search finds anything instantly. Just... start typing!", voice: 'host' },
+    searchReact: { text: "Projects... boom, found it! Way faster than scrolling through everything.", voice: 'dev' },
+    levelControls: { text: "Collapse all, expand all, or pick a specific depth level.", voice: 'host' },
+    levelReact: { text: "Total control over how much you see. I really like that!", voice: 'dev' },
+    copy: { text: "Copy to clipboard for Postman, tests, wherever you need it!", voice: 'host' },
+    copyReact: { text: "One click copy... perfect!", voice: 'dev' },
+    theme: { text: "Oh, and... dark mode or light mode. Your choice!", voice: 'host' },
+    themeReact: { text: "Dark mode, obviously! My eyes thank you.", voice: 'dev' },
+    outro: { text: "JSON Viewer. Free, fast, and completely private. Your data never leaves your browser.", voice: 'host' },
+    outroReact: { text: "Alright, I'm sold! Installing this right now.", voice: 'dev' }
 };
 
 // Rich sample JSON for demo
@@ -161,14 +176,28 @@ function ensureDir(dir) {
     }
 }
 
+// Find FFmpeg path - check common locations
+function findFFmpegPath() {
+    const paths = [
+        '/opt/homebrew/bin/ffmpeg',
+        '/usr/local/bin/ffmpeg',
+        'ffmpeg'
+    ];
+    for (const p of paths) {
+        try {
+            execSync(`${p} -version`, { stdio: 'pipe' });
+            return p;
+        } catch {}
+    }
+    return null;
+}
+
+const FFMPEG = findFFmpegPath();
+const FFPROBE = FFMPEG ? FFMPEG.replace('ffmpeg', 'ffprobe') : null;
+
 // Check if FFmpeg is available
 function checkFFmpeg() {
-    try {
-        execSync('ffmpeg -version', { stdio: 'pipe' });
-        return true;
-    } catch {
-        return false;
-    }
+    return FFMPEG !== null;
 }
 
 // Generate audio using macOS 'say' command (no API needed)
@@ -179,7 +208,7 @@ function generateMacAudio(text, outputPath) {
     execSync(`say -v "${MAC_VOICE}" -o "${aiffPath}" "${text.replace(/"/g, '\\"')}"`, { stdio: 'pipe' });
 
     // Convert to MP3 with FFmpeg
-    execSync(`ffmpeg -y -i "${aiffPath}" -acodec libmp3lame -ab 192k "${outputPath}"`, { stdio: 'pipe' });
+    execSync(`${FFMPEG} -y -i "${aiffPath}" -acodec libmp3lame -ab 192k "${outputPath}"`, { stdio: 'pipe' });
 
     // Remove temp AIFF
     fs.unlinkSync(aiffPath);
@@ -188,7 +217,9 @@ function generateMacAudio(text, outputPath) {
 }
 
 // Generate audio using ElevenLabs API
-async function generateAudio(text, outputPath) {
+async function generateAudio(text, outputPath, voiceType = 'host') {
+    const voiceId = voiceType === 'dev' ? VOICE_DEV : VOICE_HOST;
+
     return new Promise((resolve, reject) => {
         const postData = JSON.stringify({
             text: text,
@@ -202,7 +233,7 @@ async function generateAudio(text, outputPath) {
         const options = {
             hostname: 'api.elevenlabs.io',
             port: 443,
-            path: `/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+            path: `/v1/text-to-speech/${voiceId}`,
             method: 'POST',
             headers: {
                 'Accept': 'audio/mpeg',
@@ -255,7 +286,7 @@ async function generateAudio(text, outputPath) {
 function getAudioDuration(audioPath) {
     try {
         const result = execSync(
-            `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`,
+            `${FFPROBE} -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`,
             { encoding: 'utf-8' }
         );
         return parseFloat(result.trim()) * 1000; // Convert to milliseconds
@@ -276,7 +307,16 @@ function generateSidebarImage(outputPath) {
         'YAML Export',
         'Dark & Light Themes',
         'Keyboard Shortcuts',
+        'DevTools Integration',
+        'Copy & Save',
         '100%% Offline & Private'  // %% escapes % in FFmpeg
+    ];
+
+    // "Why JSON Viewer" benefits
+    const benefits = [
+        'No data leaves your browser',
+        'Works with any JSON API',
+        'Zero configuration needed'
     ];
 
     // Build FFmpeg filter for sidebar with gradient background and text
@@ -288,69 +328,80 @@ function generateSidebarImage(outputPath) {
     ];
 
     // JSON icon brackets (using { } which works in any font)
-    const iconY = 60;
+    const iconY = 40;
     filters.push(
-        `drawtext=text='\\{ \\}':fontsize=80:fontcolor=0x10b981:x=(w-text_w)/2:y=${iconY}:fontfile=/System/Library/Fonts/Menlo.ttc`
+        `drawtext=text='\\{ \\}':fontsize=70:fontcolor=0x10b981:x=(w-text_w)/2:y=${iconY}:fontfile=/System/Library/Fonts/Menlo.ttc`
     );
 
     // Title
-    const titleY = iconY + 110;
+    const titleY = iconY + 95;
     filters.push(
-        `drawtext=text='JSON Viewer':fontsize=44:fontcolor=white:x=(w-text_w)/2:y=${titleY}:fontfile=/System/Library/Fonts/Helvetica.ttc`
+        `drawtext=text='JSON Viewer':fontsize=40:fontcolor=white:x=(w-text_w)/2:y=${titleY}:fontfile=/System/Library/Fonts/Helvetica.ttc`
     );
 
     // Tagline
-    const taglineY = titleY + 55;
+    const taglineY = titleY + 48;
     filters.push(
-        `drawtext=text='Transform raw JSON':fontsize=20:fontcolor=0xaaaaaa:x=(w-text_w)/2:y=${taglineY}:fontfile=/System/Library/Fonts/Helvetica.ttc`
+        `drawtext=text='Transform raw JSON':fontsize=18:fontcolor=0xaaaaaa:x=(w-text_w)/2:y=${taglineY}:fontfile=/System/Library/Fonts/Helvetica.ttc`
     );
 
-    // Features list with green bullets (using simple dot character)
-    const featuresStartY = taglineY + 70;
-    const featureSpacing = 44;
+    // Features section header
+    const featureHeaderY = taglineY + 55;
+    filters.push(
+        `drawtext=text='FEATURES':fontsize=14:fontcolor=0x10b981:x=80:y=${featureHeaderY}:fontfile=/System/Library/Fonts/Helvetica.ttc`
+    );
+
+    // Features list with green bullets
+    const featuresStartY = featureHeaderY + 30;
+    const featureSpacing = 36;
     const bulletX = 80;
-    const textX = 110;
+    const textX = 105;
 
     features.forEach((feature, i) => {
         const y = featuresStartY + (i * featureSpacing);
         // Green bullet dot
         filters.push(
-            `drawbox=x=${bulletX}:y=${y + 8}:w=10:h=10:c=0x10b981:t=fill`
+            `drawbox=x=${bulletX}:y=${y + 6}:w=8:h=8:c=0x10b981:t=fill`
         );
         // Feature text
         filters.push(
-            `drawtext=text='${feature}':fontsize=22:fontcolor=white:x=${textX}:y=${y}:fontfile=/System/Library/Fonts/Helvetica.ttc`
+            `drawtext=text='${feature}':fontsize=19:fontcolor=white:x=${textX}:y=${y}:fontfile=/System/Library/Fonts/Helvetica.ttc`
+        );
+    });
+
+    // "Why JSON Viewer" section
+    const whyHeaderY = featuresStartY + (features.length * featureSpacing) + 35;
+    filters.push(
+        `drawtext=text='WHY JSON VIEWER':fontsize=14:fontcolor=0x10b981:x=80:y=${whyHeaderY}:fontfile=/System/Library/Fonts/Helvetica.ttc`
+    );
+
+    const benefitsStartY = whyHeaderY + 30;
+    benefits.forEach((benefit, i) => {
+        const y = benefitsStartY + (i * 32);
+        filters.push(
+            `drawtext=text='${benefit}':fontsize=16:fontcolor=0xcccccc:x=80:y=${y}:fontfile=/System/Library/Fonts/Helvetica.ttc`
         );
     });
 
     // CTA box background (green button)
-    const ctaY = FINAL_SIZE.height - 160;
+    const ctaY = FINAL_SIZE.height - 130;
     filters.push(
-        `drawbox=x=60:y=${ctaY}:w=${SIDEBAR_WIDTH - 120}:h=90:c=0x10b981:t=fill`
+        `drawbox=x=60:y=${ctaY}:w=${SIDEBAR_WIDTH - 120}:h=80:c=0x10b981:t=fill`
     );
     // CTA text
     filters.push(
-        `drawtext=text='Free on Chrome':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=${ctaY + 22}:fontfile=/System/Library/Fonts/Helvetica.ttc`
+        `drawtext=text='Free on Chrome':fontsize=22:fontcolor=white:x=(w-text_w)/2:y=${ctaY + 18}:fontfile=/System/Library/Fonts/Helvetica.ttc`
     );
     filters.push(
-        `drawtext=text='Web Store':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=${ctaY + 52}:fontfile=/System/Library/Fonts/Helvetica.ttc`
+        `drawtext=text='Web Store':fontsize=22:fontcolor=white:x=(w-text_w)/2:y=${ctaY + 46}:fontfile=/System/Library/Fonts/Helvetica.ttc`
     );
 
     const filterStr = filters.join(',');
 
     try {
-        const args = [
-            '-y',
-            '-f', 'lavfi',
-            '-i', filterStr,
-            '-frames:v', '1',
-            outputPath
-        ];
-
-        const result = spawnSync('ffmpeg', args, { stdio: 'pipe' });
-        if (result.status !== 0) {
-            throw new Error(result.stderr?.toString() || 'FFmpeg failed');
-        }
+        // Use execSync with shell quoting - spawnSync has issues with complex filter strings
+        const cmd = `${FFMPEG} -y -f lavfi -i "${filterStr}" -frames:v 1 -update 1 "${outputPath}"`;
+        execSync(cmd, { stdio: 'pipe' });
         console.log('  ✓ Sidebar panel created');
         return true;
     } catch (error) {
@@ -364,37 +415,67 @@ async function compositeWithSidebar(videoPath, sidebarPath, outputPath) {
     console.log('\n🎨 Compositing video with branded sidebar...');
 
     try {
-        // Use FFmpeg overlay approach: scale browser, pad, then overlay sidebar
+        // Use FFmpeg overlay approach: scale browser to fit left side, then overlay sidebar on right
         const args = [
             '-y',
             '-i', videoPath,           // Input 0: browser video
             '-i', sidebarPath,         // Input 1: sidebar image
             '-filter_complex', [
-                // Scale browser video to exact size and pad to final width
+                // Scale browser video to exact size and pad to final width (browser on left, dark bg for sidebar area)
                 `[0:v]scale=${BROWSER_SIZE.width}:${BROWSER_SIZE.height}:force_original_aspect_ratio=disable,pad=${FINAL_SIZE.width}:${FINAL_SIZE.height}:0:0:0x1a1a2e[padded]`,
                 // Overlay sidebar image on the right side
                 `[padded][1:v]overlay=${BROWSER_SIZE.width}:0[vout]`
             ].join(';'),
             '-map', '[vout]',
-            '-map', '0:a?',             // Keep audio if present
+            '-map', '0:a',              // Keep audio (fail if no audio)
             '-c:v', 'libx264',
             '-preset', 'medium',
             '-crf', '18',
             '-pix_fmt', 'yuv420p',
-            '-c:a', 'copy',
+            '-c:a', 'aac',              // Re-encode audio to ensure compatibility
+            '-b:a', '320k',
             '-movflags', '+faststart',
             outputPath
         ];
 
-        console.log('  Running FFmpeg composite...');
-        const result = spawnSync('ffmpeg', args, { stdio: 'pipe', timeout: 300000 }); // 5 min timeout
+        // Check if input has audio first
+        try {
+            const hasAudio = execSync(`${FFPROBE} -v error -select_streams a -show_entries stream=codec_name -of csv=p=0 "${videoPath}"`, { encoding: 'utf-8' }).trim();
+            console.log(`  Input video audio: ${hasAudio || 'NONE'}`);
+            if (!hasAudio) {
+                // No audio in input, use optional mapping
+                args[args.indexOf('-map', args.indexOf('[vout]') + 1) + 1] = '0:a?';
+            }
+        } catch {}
+
+        console.log('  Running FFmpeg composite (this may take a minute)...');
+        const result = spawnSync(FFMPEG, args, {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            timeout: 600000,  // 10 min timeout
+            maxBuffer: 50 * 1024 * 1024  // 50MB buffer for large videos
+        });
+
+        if (result.error) {
+            throw new Error(`Spawn error: ${result.error.message}`);
+        }
 
         if (result.status !== 0) {
             const stderr = result.stderr?.toString() || 'Unknown error';
-            throw new Error(stderr.split('\n').slice(-5).join('\n'));
+            console.error('  FFmpeg stderr:', stderr.slice(-500));
+            throw new Error(`Exit code ${result.status}`);
         }
 
-        console.log('  ✓ Video composited successfully');
+        // Verify final output has audio
+        try {
+            const finalAudio = execSync(`${FFPROBE} -v error -select_streams a -show_entries stream=codec_name -of csv=p=0 "${outputPath}"`, { encoding: 'utf-8' }).trim();
+            if (finalAudio) {
+                console.log(`  ✓ Video composited with audio (codec: ${finalAudio})`);
+            } else {
+                console.warn('  ⚠ Warning: Final video has NO audio!');
+            }
+        } catch {
+            console.log('  ✓ Video composited (unable to verify audio)');
+        }
         return true;
     } catch (error) {
         console.error('  ✗ Composite failed:', error.message);
@@ -414,27 +495,29 @@ async function generateAllAudio() {
     const entries = Object.entries(VOICEOVER);
 
     for (let i = 0; i < entries.length; i++) {
-        const [key, text] = entries[i];
+        const [key, voiceData] = entries[i];
+        const text = voiceData.text;
+        const voiceType = voiceData.voice;
         const audioPath = path.join(audioDir, `${key}.mp3`);
 
         // Skip if already generated (delete docs/video/audio/ to regenerate)
         if (fs.existsSync(audioPath)) {
-            console.log(`  ✓ ${key} (cached)`);
-            audioFiles[key] = { path: audioPath, duration: getAudioDuration(audioPath) };
+            console.log(`  ✓ ${key} [${voiceType}] (cached)`);
+            audioFiles[key] = { path: audioPath, duration: getAudioDuration(audioPath), voice: voiceType };
             continue;
         }
 
         try {
-            console.log(`  Generating ${key}... (${i + 1}/${entries.length})`);
+            console.log(`  Generating ${key} [${voiceType}]... (${i + 1}/${entries.length})`);
 
             if (useElevenLabs) {
-                await generateAudio(text, audioPath);
+                await generateAudio(text, audioPath, voiceType);
             } else {
                 generateMacAudio(text, audioPath);
             }
 
-            audioFiles[key] = { path: audioPath, duration: getAudioDuration(audioPath) };
-            console.log(`  ✓ ${key} (${(audioFiles[key].duration / 1000).toFixed(1)}s)`);
+            audioFiles[key] = { path: audioPath, duration: getAudioDuration(audioPath), voice: voiceType };
+            console.log(`  ✓ ${key} [${voiceType}] (${(audioFiles[key].duration / 1000).toFixed(1)}s)`);
         } catch (error) {
             console.error(`  ✗ Failed to generate ${key}: ${error.message}`);
             audioFiles[key] = null;
@@ -442,7 +525,7 @@ async function generateAllAudio() {
 
         // Small delay between API calls to avoid rate limiting (ElevenLabs only)
         if (useElevenLabs && i < entries.length - 1) {
-            await sleep(100);
+            await sleep(150);
         }
     }
 
@@ -476,12 +559,15 @@ async function mergeAudioWithVideo(videoPath, audioTimeline, outputPath) {
         const inputIdx = i + 1; // +1 because video is input 0
         const delayMs = Math.round(item.startTime);
         const label = `a${i}`;
-        filterParts.push(`[${inputIdx}:a]adelay=${delayMs}|${delayMs}[${label}]`);
+        // Boost volume for each track - female voice (host) gets more boost
+        const isHost = item.voiceKey && !item.voiceKey.includes('React');
+        const vol = isHost ? '3.0' : '2.0';
+        filterParts.push(`[${inputIdx}:a]volume=${vol},adelay=${delayMs}|${delayMs}[${label}]`);
         mixLabels.push(`[${label}]`);
     });
 
-    // Combine all audio streams and boost volume (amix normalizes which makes it quiet)
-    filterParts.push(`${mixLabels.join('')}amix=inputs=${validAudio.length}:duration=longest:normalize=0,volume=2.0[aout]`);
+    // Combine audio streams - normalize=0 prevents amix from reducing volume
+    filterParts.push(`${mixLabels.join('')}amix=inputs=${validAudio.length}:duration=longest:normalize=0[aout]`);
 
     const filterComplex = filterParts.join(';');
 
@@ -503,20 +589,43 @@ async function mergeAudioWithVideo(videoPath, audioTimeline, outputPath) {
             // CRF 18 = high quality for YouTube, preset slow = better compression
             ...(needsReencode ? ['-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p'] : ['-c:v', 'copy']),
             '-c:a', 'aac',
-            '-b:a', '256k',
+            '-b:a', '320k',  // High quality audio
             '-movflags', '+faststart',
             outputPath
         ];
 
-        console.log('  Running FFmpeg...');
-        const result = spawnSync('ffmpeg', args, { stdio: 'pipe' });
+        console.log('  Running FFmpeg audio merge...');
+        console.log(`  Filter: ${filterComplex.substring(0, 200)}...`);
+
+        const result = spawnSync(FFMPEG, args, {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            timeout: 600000,  // 10 min timeout
+            maxBuffer: 50 * 1024 * 1024  // 50MB buffer
+        });
+
+        if (result.error) {
+            console.error('  Spawn error:', result.error.message);
+            throw new Error(`Spawn error: ${result.error.message}`);
+        }
 
         if (result.status !== 0) {
             const stderr = result.stderr?.toString() || 'Unknown error';
-            throw new Error(stderr.split('\n').slice(-5).join('\n'));
+            console.error('  FFmpeg failed with exit code:', result.status);
+            console.error('  stderr:', stderr.slice(-1000));
+            throw new Error(`Exit code ${result.status}`);
         }
 
-        console.log('  ✓ Audio merged successfully');
+        // Verify output has audio
+        try {
+            const probeResult = execSync(`${FFPROBE} -v error -select_streams a -show_entries stream=codec_name -of csv=p=0 "${outputPath}"`, { encoding: 'utf-8' });
+            if (probeResult.trim()) {
+                console.log(`  ✓ Audio merged successfully (codec: ${probeResult.trim()})`);
+            } else {
+                console.warn('  ⚠ Warning: Output video has no audio stream!');
+            }
+        } catch {
+            console.log('  ✓ Audio merge completed (unable to verify)')
+        }
     } catch (error) {
         console.error('  ✗ FFmpeg merge failed:', error.message);
         // Fall back to video without audio
@@ -526,6 +635,24 @@ async function mergeAudioWithVideo(videoPath, audioTimeline, outputPath) {
 
 // Track audio timeline for later merging
 const audioTimeline = [];
+const audioTimelinePath = path.join(outputDir, 'audio-timeline.json');
+
+// Save audio timeline to file for remix mode
+function saveAudioTimeline() {
+    fs.writeFileSync(audioTimelinePath, JSON.stringify(audioTimeline, null, 2));
+    console.log(`  Saved audio timeline (${audioTimeline.length} clips)`);
+}
+
+// Load audio timeline from file for remix mode
+function loadAudioTimeline() {
+    if (!fs.existsSync(audioTimelinePath)) {
+        console.error('  No audio timeline found. Run full recording first.');
+        return null;
+    }
+    const timeline = JSON.parse(fs.readFileSync(audioTimelinePath, 'utf-8'));
+    console.log(`  Loaded audio timeline (${timeline.length} clips)`);
+    return timeline;
+}
 
 function createServer(port) {
     return new Promise((resolve) => {
@@ -568,22 +695,81 @@ async function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Smooth mouse movement to element (for natural demo feel)
+async function smoothMoveTo(page, selector, options = {}) {
+    const element = typeof selector === 'string' ? await page.$(selector) : selector;
+    if (!element) return null;
+
+    const box = await element.boundingBox();
+    if (!box) return null;
+
+    // Target center of element with optional offset
+    const targetX = box.x + box.width / 2 + (options.offsetX || 0);
+    const targetY = box.y + box.height / 2 + (options.offsetY || 0);
+
+    // Move with steps for smooth animation
+    await page.mouse.move(targetX, targetY, { steps: options.steps || 15 });
+    await sleep(options.pauseAfter || 100);
+
+    return element;
+}
+
+// Click with smooth movement and visible feedback
+async function smoothClick(page, selector, options = {}) {
+    const element = await smoothMoveTo(page, selector, { ...options, pauseAfter: 150 });
+    if (!element) return false;
+
+    await page.mouse.down();
+    await sleep(80);
+    await page.mouse.up();
+    await sleep(options.pauseAfter || 200);
+
+    return true;
+}
+
+// Type text with visible keystrokes
+async function smoothType(page, selector, text, options = {}) {
+    const element = await smoothMoveTo(page, selector, options);
+    if (!element) return false;
+
+    await element.click();
+    await sleep(100);
+
+    for (const char of text) {
+        await page.keyboard.type(char, { delay: options.typeDelay || 60 });
+    }
+    await sleep(options.pauseAfter || 200);
+    return true;
+}
+
 // Inject custom cursor for video recording (Playwright doesn't capture system cursor)
 async function injectCustomCursor(page) {
     await page.evaluate(() => {
-        // Create cursor element
+        // Create cursor element - larger and more visible
         const cursor = document.createElement('div');
         cursor.id = 'jv-demo-cursor';
         cursor.innerHTML = `
-            <div style="
-                width: 20px;
-                height: 20px;
+            <div class="cursor-ring" style="
+                width: 28px;
+                height: 28px;
                 border: 3px solid #10b981;
                 border-radius: 50%;
-                background: rgba(16, 185, 129, 0.3);
+                background: rgba(16, 185, 129, 0.25);
                 pointer-events: none;
                 transform: translate(-50%, -50%);
-                transition: transform 0.05s ease-out;
+                transition: transform 0.1s ease-out, background 0.1s ease;
+                box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+            "></div>
+            <div class="cursor-dot" style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 6px;
+                height: 6px;
+                background: #10b981;
+                border-radius: 50%;
+                transform: translate(-50%, -50%);
+                pointer-events: none;
             "></div>
         `;
         cursor.style.cssText = `
@@ -595,19 +781,26 @@ async function injectCustomCursor(page) {
         `;
         document.body.appendChild(cursor);
 
-        // Track mouse movement
+        const ring = cursor.querySelector('.cursor-ring');
+        const dot = cursor.querySelector('.cursor-dot');
+
+        // Track mouse movement with smooth transition
         document.addEventListener('mousemove', (e) => {
             cursor.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
         });
 
-        // Click animation
+        // Click animation - ring shrinks, dot pulses
         document.addEventListener('mousedown', () => {
-            cursor.firstElementChild.style.transform = 'translate(-50%, -50%) scale(0.8)';
-            cursor.firstElementChild.style.background = 'rgba(16, 185, 129, 0.6)';
+            ring.style.transform = 'translate(-50%, -50%) scale(0.7)';
+            ring.style.background = 'rgba(16, 185, 129, 0.5)';
+            ring.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.6)';
+            dot.style.transform = 'translate(-50%, -50%) scale(1.5)';
         });
         document.addEventListener('mouseup', () => {
-            cursor.firstElementChild.style.transform = 'translate(-50%, -50%) scale(1)';
-            cursor.firstElementChild.style.background = 'rgba(16, 185, 129, 0.3)';
+            ring.style.transform = 'translate(-50%, -50%) scale(1)';
+            ring.style.background = 'rgba(16, 185, 129, 0.25)';
+            ring.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.4)';
+            dot.style.transform = 'translate(-50%, -50%) scale(1)';
         });
     });
 }
@@ -661,10 +854,14 @@ let recordingStartTime = 0;
 
 // Speak text with subtitle display - tracks audio timestamps for later merging
 async function speak(page, voiceKey, showSub = true) {
-    const text = VOICEOVER[voiceKey];
-    if (!text) return 0;
+    const voiceData = VOICEOVER[voiceKey];
+    if (!voiceData) return 0;
 
-    console.log(`  🎙️  "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+    const text = voiceData.text;
+    const voice = voiceData.voice;
+    const icon = voice === 'dev' ? '👨‍💻' : '🎙️';
+
+    console.log(`  ${icon} "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
 
     // Show subtitle
     if (showSub) {
@@ -695,9 +892,9 @@ async function speak(page, voiceKey, showSub = true) {
 
 // Wait for speech to complete and hide subtitle
 async function endSpeech(page, duration) {
-    await sleep(duration + 200);
+    await sleep(Math.max(0, duration) + 300); // Add 300ms buffer to prevent audio overlap
     await hideSubtitle(page);
-    await sleep(300);
+    await sleep(100); // Quick transition to next scene
 }
 
 async function recordDemo() {
@@ -790,42 +987,58 @@ async function recordDemo() {
         await injectCustomCursor(page); // Re-inject after reload
         await sleep(500);
 
-        // Intro - show subtitle, wait, then hide
+        // Intro dialogue
         let dur = await speak(page, 'intro');
         await endSpeech(page, dur);
+        dur = await speak(page, 'introReact');
+        await endSpeech(page, dur);
 
-        // Tree view - speak while showing
+        // Tree view - host explains
         dur = await speak(page, 'treeView');
         await endSpeech(page, dur);
 
-        // Expand nodes while speaking
+        // Expand nodes - dev reacts
         console.log('  Expanding nodes...');
         dur = await speak(page, 'expandNodes');
         const toggles = await page.$$('.jv-toggle');
-        for (let i = 0; i < Math.min(5, toggles.length); i++) {
-            await toggles[i].click();
-            await sleep(350);
+        // Expand first 4 nodes with smooth clicks
+        for (let i = 0; i < Math.min(4, toggles.length); i++) {
+            await smoothClick(page, toggles[i], { pauseAfter: 250 });
         }
-        await endSpeech(page, dur - (toggles.length * 350));
+        await sleep(150);
+        // Collapse a couple back to show toggle works both ways
+        console.log('  Collapsing some nodes...');
+        const expandedToggles = await page.$$('.jv-toggle.jv-expanded');
+        for (let i = 0; i < Math.min(2, expandedToggles.length); i++) {
+            await smoothClick(page, expandedToggles[i], { pauseAfter: 200 });
+        }
+        await sleep(100);
+        // Re-expand one
+        const collapsedToggles = await page.$$('.jv-toggle:not(.jv-expanded)');
+        if (collapsedToggles.length > 0) {
+            await smoothClick(page, collapsedToggles[0], { pauseAfter: 200 });
+        }
+        await endSpeech(page, dur);
 
         // ========================================
         // SCENE 2: Editor View (action first, then speak)
         // ========================================
         console.log('\n📹 Recording Scene 2: Editor View');
 
-        await page.click('.jv-nav-btn:has-text("Editor")');
+        await smoothClick(page, '.jv-nav-btn:has-text("Editor")', { pauseAfter: 250 });
         await page.waitForSelector('.jv-editor-wrapper', { timeout: 5000 });
-        await sleep(300);
 
         dur = await speak(page, 'editorView');
-        // Scroll editor while speaking
+        // Scroll editor while speaking - move mouse to editor area
         const editor = await page.$('.jv-editor-wrapper');
         if (editor) {
-            await sleep(400);
+            await smoothMoveTo(page, editor, { pauseAfter: 200 });
             await editor.evaluate(el => el.scrollTop = 100);
-            await sleep(400);
+            await sleep(300);
             await editor.evaluate(el => el.scrollTop = 0);
         }
+        await endSpeech(page, dur);
+        dur = await speak(page, 'editorReact');
         await endSpeech(page, dur);
 
         // ========================================
@@ -833,9 +1046,10 @@ async function recordDemo() {
         // ========================================
         console.log('\n📹 Recording Scene 3: Schema View');
 
-        await page.click('.jv-nav-btn:has-text("Schema")');
-        await sleep(300);
+        await smoothClick(page, '.jv-nav-btn:has-text("Schema")', { pauseAfter: 250 });
         dur = await speak(page, 'schemaView');
+        await endSpeech(page, dur);
+        dur = await speak(page, 'schemaReact');
         await endSpeech(page, dur);
 
         // ========================================
@@ -843,9 +1057,10 @@ async function recordDemo() {
         // ========================================
         console.log('\n📹 Recording Scene 4: YAML View');
 
-        await page.click('.jv-nav-btn:has-text("YAML")');
-        await sleep(300);
+        await smoothClick(page, '.jv-nav-btn:has-text("YAML")', { pauseAfter: 250 });
         dur = await speak(page, 'yamlView');
+        await endSpeech(page, dur);
+        dur = await speak(page, 'yamlReact');
         await endSpeech(page, dur);
 
         // ========================================
@@ -853,53 +1068,41 @@ async function recordDemo() {
         // ========================================
         console.log('\n📹 Recording Scene 5: Search');
 
-        await page.click('.jv-nav-btn:has-text("Tree")');
-        await sleep(300);
-
-        const searchInput = await page.$('.jv-search');
-        if (searchInput) {
-            await searchInput.focus();
-            await sleep(200);
-        }
+        await smoothClick(page, '.jv-nav-btn:has-text("Tree")', { pauseAfter: 250 });
 
         dur = await speak(page, 'search');
+        await endSpeech(page, dur);
+        // Type search term with smooth mouse movement to search box
+        const searchInput = await page.$('.jv-search');
         if (searchInput) {
-            // Type search term while speaking
-            const searchTerm = 'projects';
-            for (const char of searchTerm) {
-                await page.keyboard.type(char);
-                await sleep(80);
-            }
-            await sleep(500);
+            await smoothType(page, searchInput, 'projects', { typeDelay: 60, pauseAfter: 400 });
+            dur = await speak(page, 'searchReact');
+            await endSpeech(page, dur);
+            await sleep(250);
             await searchInput.fill('');
         }
-        await endSpeech(page, dur);
 
         // ========================================
-        // SCENE 6: Expand/Collapse levels
+        // SCENE 6: Expand/Collapse All
         // ========================================
-        console.log('\n📹 Recording Scene 6: Level Controls');
-
-        const levelBtn = await page.$('.jv-level-btn');
-        if (levelBtn) {
-            await levelBtn.click();
-            await sleep(300);
-        }
+        console.log('\n📹 Recording Scene 6: Expand/Collapse');
 
         dur = await speak(page, 'levelControls');
-        if (levelBtn) {
-            const level1 = await page.$('.jv-level-item:has-text("1")');
-            if (level1) {
-                await level1.click();
-                await sleep(500);
-            }
-            await levelBtn.click();
-            await sleep(300);
-            const level3 = await page.$('.jv-level-item:has-text("3")');
-            if (level3) {
-                await level3.click();
-            }
+        await endSpeech(page, dur);
+
+        // Click Collapse All button
+        await smoothClick(page, '.jv-btn[title="Collapse All"]', { pauseAfter: 400 });
+
+        // Click Expand All button
+        await smoothClick(page, '.jv-btn[title="Expand All"]', { pauseAfter: 300 });
+
+        // Also show level dropdown for depth control
+        await smoothClick(page, '.jv-level-btn', { pauseAfter: 250 });
+        const level2 = await page.$('.jv-level-item:has-text("2")');
+        if (level2) {
+            await smoothClick(page, level2, { pauseAfter: 250 });
         }
+        dur = await speak(page, 'levelReact');
         await endSpeech(page, dur);
 
         // ========================================
@@ -907,12 +1110,10 @@ async function recordDemo() {
         // ========================================
         console.log('\n📹 Recording Scene 7: Copy Action');
 
-        const copyBtn = await page.$('.jv-btn[title*="Copy"]');
-        if (copyBtn) {
-            await copyBtn.click();
-            await sleep(200);
-        }
         dur = await speak(page, 'copy');
+        await endSpeech(page, dur);
+        await smoothClick(page, '.jv-btn[title*="Copy"]', { pauseAfter: 250 });
+        dur = await speak(page, 'copyReact');
         await endSpeech(page, dur);
 
         // ========================================
@@ -920,16 +1121,13 @@ async function recordDemo() {
         // ========================================
         console.log('\n📹 Recording Scene 8: Theme Toggle');
 
-        const themeBtn = await page.$('.jv-btn[title*="Theme"]');
-        if (themeBtn) {
-            await themeBtn.click();
-            await sleep(300);
-        }
         dur = await speak(page, 'theme');
-        if (themeBtn) {
-            await sleep(600);
-            await themeBtn.click();
-        }
+        await endSpeech(page, dur);
+        // Toggle to light theme
+        await smoothClick(page, '.jv-btn[title*="Theme"]', { pauseAfter: 500 });
+        // Toggle back to dark
+        await smoothClick(page, '.jv-btn[title*="Theme"]', { pauseAfter: 250 });
+        dur = await speak(page, 'themeReact');
         await endSpeech(page, dur);
 
         // ========================================
@@ -938,7 +1136,9 @@ async function recordDemo() {
         console.log('\n📹 Recording outro...');
         dur = await speak(page, 'outro');
         await endSpeech(page, dur);
-        await sleep(500);
+        dur = await speak(page, 'outroReact');
+        await endSpeech(page, dur);
+        await sleep(300);
 
     } catch (error) {
         console.error('\n✗ Recording error:', error.message);
@@ -969,6 +1169,8 @@ async function recordDemo() {
             audioTimeline.forEach((item, i) => {
                 console.log(`  ${i + 1}. ${item.voiceKey} @ ${(item.startTime/1000).toFixed(1)}s`);
             });
+            // Save timeline for remix mode
+            saveAudioTimeline();
         }
 
         // Step 1: Merge audio with browser video (or just convert to MP4)
@@ -978,7 +1180,7 @@ async function recordDemo() {
             // Convert browser video to MP4 without audio
             console.log('\n📦 Converting browser video to MP4...');
             try {
-                execSync(`ffmpeg -y -i "${rawVideoPath}" -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart "${browserVideoPath}"`, { stdio: 'pipe' });
+                execSync(`${FFMPEG} -y -i "${rawVideoPath}" -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart "${browserVideoPath}"`, { stdio: 'pipe' });
             } catch (e) {
                 console.log('  (Conversion failed, using raw video)');
                 fs.copyFileSync(rawVideoPath, browserVideoPath);
@@ -1032,7 +1234,119 @@ async function recordDemo() {
     } catch {}
 }
 
-recordDemo().catch(e => {
-    console.error('Error:', e.message);
-    process.exit(1);
-});
+// Remix mode - just re-mix audio with existing video (no screen recording)
+async function remixVideo() {
+    console.log('='.repeat(60));
+    console.log('JSON Viewer - Remix Audio');
+    console.log('='.repeat(60));
+    console.log('Mode: REMIX (skip recording, re-mix audio only)\n');
+
+    if (!checkFFmpeg()) {
+        console.error('✗ FFmpeg required for remix');
+        console.log('  Install with: brew install ffmpeg\n');
+        process.exit(1);
+    }
+
+    ensureDir(outputDir);
+
+    // Find the raw video file
+    const videoFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('.webm'));
+    if (videoFiles.length === 0) {
+        console.error('✗ No raw video file found in docs/video/');
+        console.log('  Run full recording first: npm run record -- --voice\n');
+        process.exit(1);
+    }
+
+    const rawVideoPath = path.join(outputDir, videoFiles[videoFiles.length - 1]);
+    console.log(`✓ Found raw video: ${videoFiles[videoFiles.length - 1]}`);
+
+    // Load or rebuild audio timeline
+    let timeline = loadAudioTimeline();
+
+    if (!timeline) {
+        // Rebuild timeline from audio files with estimated timings
+        console.log('\n  Rebuilding audio timeline from files...');
+        const voiceKeys = Object.keys(VOICEOVER);
+        let currentTime = 500; // Start 500ms in
+
+        timeline = [];
+        for (const key of voiceKeys) {
+            const audioPath = path.join(audioDir, `${key}.mp3`);
+            if (fs.existsSync(audioPath)) {
+                const duration = getAudioDuration(audioPath);
+                timeline.push({
+                    voiceKey: key,
+                    audioPath,
+                    startTime: currentTime,
+                    duration
+                });
+                currentTime += duration + 400; // Add gap between clips
+                console.log(`    ${key}: ${(duration/1000).toFixed(1)}s`);
+            }
+        }
+        console.log(`  Rebuilt timeline with ${timeline.length} clips`);
+    }
+
+    if (timeline.length === 0) {
+        console.error('✗ No audio clips found');
+        console.log('  Generate audio first: npm run record -- --voice\n');
+        process.exit(1);
+    }
+
+    // Regenerate audio if needed
+    if (useElevenLabs || useMacVoice) {
+        audioFiles = await generateAllAudio();
+    }
+
+    const browserVideoPath = path.join(outputDir, 'browser-temp.mp4');
+    const sidebarPath = path.join(outputDir, 'sidebar.png');
+    const mp4Path = path.join(outputDir, 'json-viewer-demo-youtube.mp4');
+
+    // Remove old output files
+    [browserVideoPath, mp4Path].forEach(p => {
+        if (fs.existsSync(p)) fs.unlinkSync(p);
+    });
+
+    // Step 1: Merge audio with video
+    console.log('\n🔊 Merging audio with video...');
+    await mergeAudioWithVideo(rawVideoPath, timeline, browserVideoPath);
+
+    // Step 2: Generate sidebar if needed
+    if (!fs.existsSync(sidebarPath)) {
+        generateSidebarImage(sidebarPath);
+    }
+
+    // Step 3: Composite with sidebar
+    if (fs.existsSync(browserVideoPath) && fs.existsSync(sidebarPath)) {
+        await compositeWithSidebar(browserVideoPath, sidebarPath, mp4Path);
+
+        // Cleanup temp file
+        try { fs.unlinkSync(browserVideoPath); } catch {}
+    }
+
+    console.log('\n' + '='.repeat(60));
+    console.log('REMIX COMPLETE');
+    console.log('='.repeat(60));
+
+    if (fs.existsSync(mp4Path)) {
+        const mp4Stats = fs.statSync(mp4Path);
+        console.log(`\n✓ Output: ${mp4Path}`);
+        console.log(`  Size: ${(mp4Stats.size / 1024 / 1024).toFixed(2)} MB`);
+        console.log(`  Audio: ${timeline.length} clips`);
+    } else {
+        console.log('\n⚠️  Remix failed. Check errors above.');
+    }
+}
+
+// Main entry point
+if (remixMode) {
+    remixVideo().catch(e => {
+        console.error('Error:', e.message);
+        process.exit(1);
+    });
+} else {
+    recordDemo().catch(e => {
+        console.error('Error:', e.message);
+        process.exit(1);
+    });
+}

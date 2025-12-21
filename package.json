@@ -20,6 +20,7 @@
     "test:full": "node tests/e2e/full-e2e-test.mjs",
     "doc": "node scripts/generate-docs.mjs",
     "record": "node scripts/record-demo.mjs",
+    "remix": "node scripts/record-demo.mjs --remix --voice",
     "clean": "rm -rf dist/ *.zip"
   },
   "devDependencies": {
