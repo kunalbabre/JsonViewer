@@ -184,6 +184,7 @@ JsonViewer/
 | `npm run test:full` | Run full E2E test suite |
 | `npm run doc` | Generate screenshots & documentation |
 | `npm run record -- --voice` | Record demo video with AI voiceover |
+| `npm run upload` | Upload demo video to YouTube |
 | `npm run package` | Bump version & package for Chrome Web Store |
 | `npm run repackage` | Package without version bump |
 | `npm run typecheck` | Run TypeScript type checking |
@@ -204,6 +205,28 @@ npm run record -- --voice
 # Record without voice (subtitles only)
 npm run record
 ```
+
+### YouTube Upload
+
+Upload recorded videos directly to YouTube:
+
+```bash
+# Upload with default settings (unlisted)
+npm run upload
+
+# Upload with custom title
+npm run upload -- --title "My Custom Title"
+
+# Upload as public
+npm run upload -- --public
+```
+
+**One-time setup:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a project and enable "YouTube Data API v3"
+3. Create OAuth 2.0 credentials (Desktop App type)
+4. Download the JSON and save as `youtube-client-secret.json` in project root
+5. First run will open browser for authorization
 
 ---
 

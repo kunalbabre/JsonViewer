@@ -21,6 +21,7 @@
     "doc": "node scripts/generate-docs.mjs",
     "record": "node scripts/record-demo.mjs",
     "remix": "node scripts/record-demo.mjs --remix --voice",
+    "upload": "node scripts/upload-youtube.mjs",
     "clean": "rm -rf dist/ *.zip"
   },
   "devDependencies": {

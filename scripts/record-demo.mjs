@@ -81,11 +81,10 @@ const ELEVENLABS_MODEL = 'eleven_multilingual_v2'; // Better quality model
 const MAC_VOICE = 'Samantha'; // Good quality built-in voice
 
 // Video layout settings
-// Browser demo on left (1400px), branded sidebar on right (520px)
-// Browser fills full height for better use of space
-const BROWSER_SIZE = { width: 1400, height: 1080 };
-const FINAL_SIZE = { width: 1920, height: 1080 };
-const SIDEBAR_WIDTH = FINAL_SIZE.width - BROWSER_SIZE.width; // 520px
+// Browser captures at lower resolution, scaled up to full HD for larger text
+const BROWSER_SIZE = { width: 1280, height: 720 }; // 720p capture - scales up for bigger text
+const FINAL_SIZE = { width: 1920, height: 1080 }; // Output at full HD
+const SIDEBAR_WIDTH = 520; // Sidebar overlaid on right side
 
 // Voiceover scripts for each scene - two-person dialogue for natural feel
 // voice: 'host' = Rachel (narrator), 'dev' = Adam (developer)
@@ -415,16 +414,17 @@ async function compositeWithSidebar(videoPath, sidebarPath, outputPath) {
     console.log('\n🎨 Compositing video with branded sidebar...');
 
     try {
-        // Use FFmpeg overlay approach: scale browser to fit left side, then overlay sidebar on right
+        // Overlay sidebar on top of full HD browser video
+        const sidebarX = FINAL_SIZE.width - SIDEBAR_WIDTH; // Position sidebar at right edge
         const args = [
             '-y',
-            '-i', videoPath,           // Input 0: browser video
+            '-i', videoPath,           // Input 0: browser video (full HD)
             '-i', sidebarPath,         // Input 1: sidebar image
             '-filter_complex', [
-                // Scale browser video to exact size and pad to final width (browser on left, dark bg for sidebar area)
-                `[0:v]scale=${BROWSER_SIZE.width}:${BROWSER_SIZE.height}:force_original_aspect_ratio=disable,pad=${FINAL_SIZE.width}:${FINAL_SIZE.height}:0:0:0x1a1a2e[padded]`,
+                // Scale browser video to full HD
+                `[0:v]scale=${FINAL_SIZE.width}:${FINAL_SIZE.height}:force_original_aspect_ratio=disable[scaled]`,
                 // Overlay sidebar image on the right side
-                `[padded][1:v]overlay=${BROWSER_SIZE.width}:0[vout]`
+                `[scaled][1:v]overlay=${sidebarX}:0[vout]`
             ].join(';'),
             '-map', '[vout]',
             '-map', '0:a',              // Keep audio (fail if no audio)
@@ -742,6 +742,9 @@ async function smoothType(page, selector, text, options = {}) {
     return true;
 }
 
+// Caption bar height for persistent subtitles
+const CAPTION_BAR_HEIGHT = 80;
+
 // Inject custom cursor for video recording (Playwright doesn't capture system cursor)
 async function injectCustomCursor(page) {
     await page.evaluate(() => {
@@ -805,45 +808,131 @@ async function injectCustomCursor(page) {
     });
 }
 
-// Show subtitle on screen
-async function showSubtitle(page, text) {
-    await page.evaluate((text) => {
-        // Create or update subtitle container
-        let subtitle = document.getElementById('jv-demo-subtitle');
-        if (!subtitle) {
-            subtitle = document.createElement('div');
-            subtitle.id = 'jv-demo-subtitle';
-            subtitle.style.cssText = `
-                position: fixed;
-                bottom: 40px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(0, 0, 0, 0.85);
-                color: white;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                font-size: 18px;
-                max-width: 80%;
-                text-align: center;
-                z-index: 999999;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                transition: opacity 0.3s ease;
-            `;
-            document.body.appendChild(subtitle);
-        }
-        subtitle.textContent = text;
-        subtitle.style.opacity = '1';
-    }, text);
+// Inject persistent caption bar at bottom and maximize JSON viewer content
+async function injectCaptionBarAndMaximize(page, captionHeight) {
+    await page.evaluate((height) => {
+        // Create persistent caption bar at the bottom
+        const captionBar = document.createElement('div');
+        captionBar.id = 'jv-demo-caption-bar';
+        captionBar.innerHTML = `
+            <div class="caption-icon" style="
+                margin-right: 16px;
+                font-size: 24px;
+                opacity: 0.8;
+            ">🎙️</div>
+            <div class="caption-text" style="
+                flex: 1;
+                font-size: 20px;
+                font-weight: 500;
+                line-height: 1.4;
+                color: #fff;
+            "></div>
+        `;
+        captionBar.style.cssText = `
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: ${height}px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+            border-top: 2px solid #10b981;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            z-index: 999998;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+        `;
+        document.body.appendChild(captionBar);
+
+        // Inject CSS to maximize JSON viewer content and account for caption bar
+        const style = document.createElement('style');
+        style.id = 'jv-demo-maximize-style';
+        style.textContent = `
+            /* Make body not scroll and account for caption bar */
+            html, body {
+                height: 100% !important;
+                overflow: hidden !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* Maximize the JSON viewer container */
+            .jv-container {
+                height: calc(100vh - ${height}px) !important;
+                max-height: calc(100vh - ${height}px) !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+
+            /* Make tree view fill available space */
+            .jv-tree-container {
+                flex: 1 !important;
+                min-height: 0 !important;
+                overflow-y: auto !important;
+            }
+
+            /* Make editor fill available space */
+            .jv-editor-wrapper {
+                flex: 1 !important;
+                min-height: 0 !important;
+            }
+
+            /* Make schema/yaml views fill space */
+            .jv-schema-container,
+            .jv-yaml-container {
+                flex: 1 !important;
+                min-height: 0 !important;
+                overflow-y: auto !important;
+            }
+
+            /* Ensure content area fills space */
+            .jv-content {
+                flex: 1 !important;
+                min-height: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }, captionHeight);
 }
 
-// Hide subtitle
+// Show subtitle in the persistent caption bar
+async function showSubtitle(page, text, voice = 'host') {
+    await page.evaluate(({ text, voice }) => {
+        const captionBar = document.getElementById('jv-demo-caption-bar');
+        if (captionBar) {
+            // Update icon based on voice
+            const icon = captionBar.querySelector('.caption-icon');
+            const textEl = captionBar.querySelector('.caption-text');
+            if (icon) {
+                icon.textContent = voice === 'dev' ? '👨‍💻' : '🎙️';
+            }
+            if (textEl) {
+                textEl.style.opacity = '0';
+                setTimeout(() => {
+                    textEl.textContent = text;
+                    textEl.style.transition = 'opacity 0.2s ease';
+                    textEl.style.opacity = '1';
+                }, 100);
+            }
+        }
+    }, { text, voice });
+}
+
+// Clear subtitle text (but keep the caption bar visible)
 async function hideSubtitle(page) {
     await page.evaluate(() => {
-        const subtitle = document.getElementById('jv-demo-subtitle');
-        if (subtitle) {
-            subtitle.style.opacity = '0';
-            setTimeout(() => subtitle.remove(), 300);
+        const captionBar = document.getElementById('jv-demo-caption-bar');
+        if (captionBar) {
+            const textEl = captionBar.querySelector('.caption-text');
+            if (textEl) {
+                textEl.style.opacity = '0';
+                setTimeout(() => {
+                    textEl.textContent = '';
+                }, 200);
+            }
         }
     });
 }
@@ -863,9 +952,9 @@ async function speak(page, voiceKey, showSub = true) {
 
     console.log(`  ${icon} "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
 
-    // Show subtitle
+    // Show subtitle in caption bar with voice indicator
     if (showSub) {
-        await showSubtitle(page, text);
+        await showSubtitle(page, text, voice);
     }
 
     // Calculate duration based on audio file or text length
@@ -985,6 +1074,7 @@ async function recordDemo() {
         await page.reload({ waitUntil: 'networkidle' });
         await page.waitForSelector('.jv-toolbar-container', { timeout: 10000 });
         await injectCustomCursor(page); // Re-inject after reload
+        await injectCaptionBarAndMaximize(page, CAPTION_BAR_HEIGHT); // Add caption bar and maximize content
         await sleep(500);
 
         // Intro dialogue
@@ -1212,7 +1302,7 @@ async function recordDemo() {
             console.log(`  Resolution: ${FINAL_SIZE.width}x${FINAL_SIZE.height}`);
             console.log(`  Size: ${(mp4Stats.size / 1024 / 1024).toFixed(2)} MB`);
             console.log(`  Audio: ${audioTimeline.length > 0 ? 'Yes (' + audioTimeline.length + ' clips)' : 'No'}`);
-            console.log(`  Layout: Browser (${BROWSER_SIZE.width}px) + Sidebar (${SIDEBAR_WIDTH}px)`);
+            console.log(`  Layout: Full HD browser with ${SIDEBAR_WIDTH}px sidebar overlay`);
             console.log('\n📺 Ready to upload to YouTube!');
         } else {
             console.log('\n⚠️  Final video creation failed.');

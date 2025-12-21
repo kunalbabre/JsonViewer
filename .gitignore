@@ -37,6 +37,10 @@ json-viewer-*.zip
 .env.*.local
 *.local
 
+# YouTube API credentials
+youtube-client-secret.json
+.youtube-token.json
+
 # npm
 npm-debug.log*
 yarn-debug.log*
