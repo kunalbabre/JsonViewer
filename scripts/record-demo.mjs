@@ -268,7 +268,7 @@ function getAudioDuration(audioPath) {
 function generateSidebarImage(outputPath) {
     console.log('  Creating branded sidebar panel...');
 
-    // Sidebar content
+    // Sidebar content - features with checkmark bullets
     const features = [
         'Tree View',
         'Editor Mode',
@@ -276,11 +276,10 @@ function generateSidebarImage(outputPath) {
         'YAML Export',
         'Dark & Light Themes',
         'Keyboard Shortcuts',
-        '100% Offline & Private'
+        '100%% Offline & Private'  // %% escapes % in FFmpeg
     ];
 
     // Build FFmpeg filter for sidebar with gradient background and text
-    // Using drawtext for each element
     const filters = [
         // Dark gradient background
         `color=c=0x1a1a2e:s=${SIDEBAR_WIDTH}x${FINAL_SIZE.height}`,
@@ -288,16 +287,16 @@ function generateSidebarImage(outputPath) {
         `drawbox=x=0:y=0:w=${SIDEBAR_WIDTH}:h=${FINAL_SIZE.height}:c=0x16213e@0.6:t=fill`
     ];
 
-    // JSON icon brackets
-    const iconY = 80;
+    // JSON icon brackets (using { } which works in any font)
+    const iconY = 60;
     filters.push(
-        `drawtext=text='{ }':fontsize=72:fontcolor=0x10b981:x=(w-text_w)/2:y=${iconY}:fontfile=/System/Library/Fonts/Menlo.ttc`
+        `drawtext=text='\\{ \\}':fontsize=80:fontcolor=0x10b981:x=(w-text_w)/2:y=${iconY}:fontfile=/System/Library/Fonts/Menlo.ttc`
     );
 
     // Title
-    const titleY = iconY + 100;
+    const titleY = iconY + 110;
     filters.push(
-        `drawtext=text='JSON Viewer':fontsize=42:fontcolor=white:x=(w-text_w)/2:y=${titleY}:fontfile=/System/Library/Fonts/Helvetica.ttc`
+        `drawtext=text='JSON Viewer':fontsize=44:fontcolor=white:x=(w-text_w)/2:y=${titleY}:fontfile=/System/Library/Fonts/Helvetica.ttc`
     );
 
     // Tagline
@@ -306,32 +305,35 @@ function generateSidebarImage(outputPath) {
         `drawtext=text='Transform raw JSON':fontsize=20:fontcolor=0xaaaaaa:x=(w-text_w)/2:y=${taglineY}:fontfile=/System/Library/Fonts/Helvetica.ttc`
     );
 
-    // Features list with checkmarks
-    const featuresStartY = taglineY + 80;
-    const featureSpacing = 48;
+    // Features list with green bullets (using simple dot character)
+    const featuresStartY = taglineY + 70;
+    const featureSpacing = 44;
+    const bulletX = 80;
+    const textX = 110;
+
     features.forEach((feature, i) => {
         const y = featuresStartY + (i * featureSpacing);
-        // Checkmark
+        // Green bullet dot
         filters.push(
-            `drawtext=text='✓':fontsize=22:fontcolor=0x10b981:x=60:y=${y}:fontfile=/System/Library/Fonts/Apple\\ Symbols.ttf`
+            `drawbox=x=${bulletX}:y=${y + 8}:w=10:h=10:c=0x10b981:t=fill`
         );
         // Feature text
         filters.push(
-            `drawtext=text='${feature}':fontsize=22:fontcolor=white:x=100:y=${y}:fontfile=/System/Library/Fonts/Helvetica.ttc`
+            `drawtext=text='${feature}':fontsize=22:fontcolor=white:x=${textX}:y=${y}:fontfile=/System/Library/Fonts/Helvetica.ttc`
         );
     });
 
-    // CTA box background
-    const ctaY = FINAL_SIZE.height - 180;
+    // CTA box background (green button)
+    const ctaY = FINAL_SIZE.height - 160;
     filters.push(
-        `drawbox=x=40:y=${ctaY}:w=${SIDEBAR_WIDTH - 80}:h=100:c=0x10b981:t=fill`
+        `drawbox=x=60:y=${ctaY}:w=${SIDEBAR_WIDTH - 120}:h=90:c=0x10b981:t=fill`
     );
-    // Rounded corners effect (small boxes at corners)
+    // CTA text
     filters.push(
-        `drawtext=text='Free on Chrome':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=${ctaY + 25}:fontfile=/System/Library/Fonts/Helvetica.ttc`
+        `drawtext=text='Free on Chrome':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=${ctaY + 22}:fontfile=/System/Library/Fonts/Helvetica.ttc`
     );
     filters.push(
-        `drawtext=text='Web Store':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=${ctaY + 55}:fontfile=/System/Library/Fonts/Helvetica.ttc`
+        `drawtext=text='Web Store':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=${ctaY + 52}:fontfile=/System/Library/Fonts/Helvetica.ttc`
     );
 
     const filterStr = filters.join(',');
@@ -362,18 +364,16 @@ async function compositeWithSidebar(videoPath, sidebarPath, outputPath) {
     console.log('\n🎨 Compositing video with branded sidebar...');
 
     try {
-        // Use FFmpeg to place browser video on left, sidebar image on right
+        // Use FFmpeg overlay approach: scale browser, pad, then overlay sidebar
         const args = [
             '-y',
             '-i', videoPath,           // Input 0: browser video
             '-i', sidebarPath,         // Input 1: sidebar image
             '-filter_complex', [
-                // Scale browser video if needed and pad to final size
-                `[0:v]scale=${BROWSER_SIZE.width}:${BROWSER_SIZE.height}[browser]`,
-                // Loop sidebar image to match video duration
-                `[1:v]loop=-1:size=1[sidebar]`,
-                // Stack horizontally: browser on left, sidebar on right
-                `[browser][sidebar]hstack=inputs=2[vout]`
+                // Scale browser video to exact size and pad to final width
+                `[0:v]scale=${BROWSER_SIZE.width}:${BROWSER_SIZE.height}:force_original_aspect_ratio=disable,pad=${FINAL_SIZE.width}:${FINAL_SIZE.height}:0:0:0x1a1a2e[padded]`,
+                // Overlay sidebar image on the right side
+                `[padded][1:v]overlay=${BROWSER_SIZE.width}:0[vout]`
             ].join(';'),
             '-map', '[vout]',
             '-map', '0:a?',             // Keep audio if present
@@ -383,12 +383,11 @@ async function compositeWithSidebar(videoPath, sidebarPath, outputPath) {
             '-pix_fmt', 'yuv420p',
             '-c:a', 'copy',
             '-movflags', '+faststart',
-            '-shortest',
             outputPath
         ];
 
         console.log('  Running FFmpeg composite...');
-        const result = spawnSync('ffmpeg', args, { stdio: 'pipe' });
+        const result = spawnSync('ffmpeg', args, { stdio: 'pipe', timeout: 300000 }); // 5 min timeout
 
         if (result.status !== 0) {
             const stderr = result.stderr?.toString() || 'Unknown error';
