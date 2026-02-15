@@ -22,10 +22,17 @@ function isJSON(text) {
     if (!((text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']')))) {
         return false;
     }
-    // For large files, skip the expensive parse check here. 
-    // We will catch errors during the actual parsing phase.
+    // For large files, do a lightweight validation on a prefix instead of full parse
     if (text.length > 50000) {
-        return true;
+        try {
+            // Parse first 1KB to check for valid JSON structure
+            const sample = text.substring(0, 1024);
+            // Check that the sample contains valid JSON tokens (keys, colons, commas)
+            const hasJsonTokens = /^\s*[\{\[]\s*("([^"\\]|\\.)*"\s*:\s*|"|\d|true|false|null|\[|\{)/.test(sample);
+            return hasJsonTokens;
+        } catch (e) {
+            return false;
+        }
     }
     try {
         JSON.parse(text);
@@ -33,6 +40,37 @@ function isJSON(text) {
     } catch (e) {
         return false;
     }
+}
+
+// Detect JSON Lines (.jsonl / .ndjson) — each line is a separate JSON object
+function isJSONL(text) {
+    if (!text) return false;
+    text = text.trim();
+    // Must start with { and have multiple lines
+    if (!text.startsWith('{')) return false;
+    const firstNewline = text.indexOf('\n');
+    if (firstNewline === -1) return false;
+    // Try parsing the first line
+    try {
+        JSON.parse(text.substring(0, firstNewline).trim());
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+// Convert JSONL text to a JSON array string
+function jsonlToArray(text) {
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    const objects = [];
+    for (const line of lines) {
+        try {
+            objects.push(JSON.parse(line.trim()));
+        } catch (e) {
+            // Skip malformed lines
+        }
+    }
+    return objects;
 }
 
 // Performance tuning constants - optimized for 50MB+ files
@@ -170,6 +208,8 @@ function showModal(json, rawData) {
         (async () => {
             const src = chrome.runtime.getURL('src/ui/Viewer.js');
             const module = await import(src);
+            // Check if modal was closed during async load
+            if (!document.getElementById('jv-modal-root')) return;
             currentModalViewer = new module.Viewer(viewerRoot, json, rawData, options);
         })();
     }
@@ -183,17 +223,10 @@ function showModal(json, rawData) {
     document.addEventListener('keydown', escHandler);
 }
 
-// Helper to check if text is valid JSON
+// isValidJson delegates to isJSON for consistency
 function isValidJson(text) {
     if (!text || text.length < 2) return false;
-    text = text.trim();
-    if (!((text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']')))) return false;
-    try {
-        JSON.parse(text);
-        return true;
-    } catch (e) {
-        return false;
-    }
+    return isJSON(text);
 }
 
 function injectViewButton(element, jsonText) {
@@ -329,34 +362,63 @@ function scanForJsonCodeBlocks() {
             // Scan for code blocks
             setTimeout(scanForJsonCodeBlocks, 1000);
             // Optional: Observe for dynamic content
-            const observer = new MutationObserver((mutations) => {
+            const mutationObserver = new MutationObserver((mutations) => {
                 // Simple debounce
                 if (window.jvScanTimeout) clearTimeout(window.jvScanTimeout);
                 window.jvScanTimeout = setTimeout(scanForJsonCodeBlocks, 1000);
             });
-            observer.observe(document.body, { childList: true, subtree: true });
+            mutationObserver.observe(document.body, { childList: true, subtree: true });
 
-            // Detect raw JSON on any page (including file://)
+            // Clean up observers on page unload
+            window.addEventListener('unload', () => {
+                mutationObserver.disconnect();
+                if (codeBlockObserver) {
+                    codeBlockObserver.disconnect();
+                }
+            });
 
             // Detect raw JSON on any page (including file://)
             let content = '';
             let isRawJson = false;
+            let isJsonLines = false;
+
+            // Check URL for known JSON/JSONL extensions
+            const urlPath = window.location.pathname.toLowerCase();
+            const isJsonlUrl = urlPath.endsWith('.jsonl') || urlPath.endsWith('.ndjson');
+            const isJsonUrl = urlPath.endsWith('.json');
 
             // Strict check: Only activate full viewer if the page is clearly a JSON response.
             // We avoid activating on regular HTML pages that happen to have a code block.
 
             // 1. Check Content-Type header (if available)
-            const jsonContentTypes = ['application/json', 'text/json', 'application/vnd.api+json'];
+            const jsonContentTypes = ['application/json', 'text/json', 'application/vnd.api+json', 'application/x-ndjson'];
             if (jsonContentTypes.includes(document.contentType)) {
                 content = document.body.innerText;
                 isRawJson = true;
+                // If content type is ndjson, mark as JSONL
+                if (document.contentType === 'application/x-ndjson') {
+                    isJsonLines = true;
+                }
             }
-            // 2. Check for Chrome/Firefox default view (Single PRE element wrapping the content)
+            // 2. Check URL extension for .jsonl/.ndjson files (often served as text/plain)
+            else if (isJsonlUrl) {
+                const text = document.body.innerText.trim();
+                if (text && isJSONL(text)) {
+                    content = text;
+                    isRawJson = true;
+                    isJsonLines = true;
+                }
+            }
+            // 3. Check for Chrome/Firefox default view (Single PRE element wrapping the content)
             else if (document.body.children.length === 1 && document.body.firstElementChild.tagName === 'PRE') {
                 const text = /** @type {HTMLElement} */ (document.body.firstElementChild).innerText.trim();
                 if (isJSON(text)) {
                     content = text;
                     isRawJson = true;
+                } else if (isJSONL(text)) {
+                    content = text;
+                    isRawJson = true;
+                    isJsonLines = true;
                 }
             }
             // 3. Check for Plain Text body (no HTML tags, just text)
@@ -365,6 +427,10 @@ function scanForJsonCodeBlocks() {
                 if (isJSON(text)) {
                     content = text;
                     isRawJson = true;
+                } else if (isJSONL(text)) {
+                    content = text;
+                    isRawJson = true;
+                    isJsonLines = true;
                 }
             }
 
@@ -373,11 +439,11 @@ function scanForJsonCodeBlocks() {
                 return;
             }
 
-            if (!isJSON(content)) {
+            if (!isJSON(content) && !isJsonLines) {
                 console.log('JSON Viewer: Not valid JSON content');
                 return;
             }
-            console.log('JSON Viewer: JSON detected!');
+            console.log('JSON Viewer: JSON detected!' + (isJsonLines ? ' (JSONL format)' : ''));
 
             try {
                 // Show loading indicator for large files
@@ -385,7 +451,15 @@ function scanForJsonCodeBlocks() {
                 const isVeryLargeFile = content.length > VERY_LARGE_FILE_THRESHOLD;
                 
                 if (isLargeFile) {
-                    document.body.innerHTML = '';
+                    // Preserve original content before replacing
+                    const originalContent = document.createElement('div');
+                    originalContent.id = 'jv-original-content';
+                    originalContent.style.display = 'none';
+                    while (document.body.firstChild) {
+                        originalContent.appendChild(document.body.firstChild);
+                    }
+                    document.body.appendChild(originalContent);
+
                     document.body.classList.add('json-viewer-active');
                     const loader = document.createElement('div');
                     loader.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-size:18px;color:#666;gap:10px;';
@@ -419,7 +493,19 @@ function scanForJsonCodeBlocks() {
                                 const workerUrl = chrome.runtime.getURL('src/workers/parse-worker.js');
                                 const worker = new Worker(workerUrl);
 
+                                // Timeout for worker - fall back to main thread after 30s
+                                const workerTimeout = setTimeout(() => {
+                                    console.warn('JSON Viewer: Parse worker timeout, falling back to main thread');
+                                    worker.terminate();
+                                    try {
+                                        resolve(JSON.parse(text));
+                                    } catch (e) {
+                                        reject(e);
+                                    }
+                                }, 30000);
+
                                 worker.onmessage = (e) => {
+                                    clearTimeout(workerTimeout);
                                     worker.terminate();
                                     if (e.data.success) {
                                         resolve(e.data.data);
@@ -431,6 +517,7 @@ function scanForJsonCodeBlocks() {
                                 worker.onerror = (err) => {
                                     // Worker failed (likely CSP), fall back to main thread
                                     console.warn('JSON Viewer: Parse worker failed, falling back to main thread:', err);
+                                    clearTimeout(workerTimeout);
                                     worker.terminate();
                                     try {
                                         resolve(JSON.parse(text));
@@ -463,7 +550,15 @@ function scanForJsonCodeBlocks() {
                 // Use setTimeout to allow UI to update before parsing
                 setTimeout(async () => {
                     try {
-                        const json = await parseJSON(content);
+                        let json;
+                        let rawForViewer = content;
+                        if (isJsonLines) {
+                            // Convert JSONL to array
+                            json = jsonlToArray(content);
+                            rawForViewer = JSON.stringify(json, null, 2);
+                        } else {
+                            json = await parseJSON(content);
+                        }
 
                         // Prepare original content for toggling
                         const originalContainer = document.createElement('div');
@@ -483,16 +578,26 @@ function scanForJsonCodeBlocks() {
                         document.body.appendChild(root);
 
                         // Initialize Viewer
-                        new Viewer(root, json, content);
+                        new Viewer(root, json, rawForViewer);
                     } catch (e) {
                         console.error('JSON Viewer: Failed to parse JSON', e);
-                        // If we showed a loader, we should probably show an error now
+                        // If we showed a loader, show an error and restore original content
                         if (isLargeFile) {
-                            document.body.innerHTML = '';
+                            // Remove loader
+                            const loader = document.body.querySelector('div[style*="justify-content:center"]');
+                            if (loader) loader.remove();
+
                             const errorDiv = document.createElement('div');
                             errorDiv.style.cssText = 'padding: 20px; color: red;';
                             errorDiv.textContent = 'Failed to parse JSON: ' + e.message;
                             document.body.appendChild(errorDiv);
+
+                            // Restore original content visibility
+                            const original = document.getElementById('jv-original-content');
+                            if (original) {
+                                original.style.display = 'block';
+                                document.body.classList.remove('json-viewer-active');
+                            }
                         }
                     }
                 }, isLargeFile ? 100 : 0);

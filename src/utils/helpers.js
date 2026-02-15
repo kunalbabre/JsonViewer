@@ -201,9 +201,10 @@ export function isJSON(text, skipParseThreshold = 50000) {
         return false;
     }
 
-    // For large files, skip the expensive parse check
+    // For large files, do a lightweight validation on a prefix
     if (text.length > skipParseThreshold) {
-        return true;
+        const sample = text.substring(0, 1024);
+        return /^\s*[\{\[]\s*("([^"\\]|\\.)*"\s*:\s*|"|\d|true|false|null|\[|\{)/.test(sample);
     }
 
     try {

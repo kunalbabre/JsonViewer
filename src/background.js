@@ -12,8 +12,9 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     const tabId = tab ? tab.id : chrome.tabs.TAB_ID_NONE;
 
     const openInNewTab = () => {
-      chrome.storage.local.set({ 'viewerContent': content }, () => {
-        chrome.tabs.create({ url: 'src/viewer.html' });
+      const viewerId = 'vc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      chrome.storage.local.set({ [viewerId]: content }, () => {
+        chrome.tabs.create({ url: 'src/viewer.html?id=' + viewerId });
       });
     };
 

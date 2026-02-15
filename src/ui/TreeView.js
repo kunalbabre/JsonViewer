@@ -1,14 +1,14 @@
 import { Icons } from './Icons.js';
 import { Toast } from './Toast.js';
+import { CONFIG } from '../config.js';
 
 /**
- * Performance tuning constants - optimized for 50MB+ files
- * See config.js for centralized configuration
+ * Performance tuning constants - imported from centralized config
  */
-const BATCH_SIZE = 250;
-const PAGE_SIZE = 1000;
-const LARGE_OBJECT_THRESHOLD = 50;
-const DEEP_NESTING_THRESHOLD = 2;
+const BATCH_SIZE = CONFIG.performance.batchSize;
+const PAGE_SIZE = CONFIG.performance.pageSize;
+const LARGE_OBJECT_THRESHOLD = CONFIG.performance.largeObjectThreshold;
+const DEEP_NESTING_THRESHOLD = CONFIG.performance.deepNestingThreshold;
 
 /**
  * @typedef {'json' | 'yaml'} TreeMode
@@ -427,13 +427,21 @@ export class TreeView {
                 const link = document.createElement('a');
                 link.href = strVal;
                 link.target = '_blank';
+                link.rel = 'noopener noreferrer';
                 link.className = 'jv-val-link';
                 // YAML strings don't need quotes usually, unless special chars
                 link.textContent = this.mode === 'yaml' ? strVal : `"${strVal}"`;
 
-                // Image Preview on hover (simple implementation)
+                // Image Preview on hover
                 if (strVal.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
                     link.title = 'Click to open image';
+                    link.classList.add('jv-image-link');
+                    link.style.setProperty('--jv-preview-url', `url("${strVal}")`);
+                }
+
+                // Highlight search match on link
+                if (this.searchQuery && strVal.toLowerCase().includes(this.searchQuery)) {
+                    link.classList.add('jv-highlight');
                 }
 
                 return link;
@@ -447,25 +455,32 @@ export class TreeView {
                 wrapper.appendChild(colorPreview);
                 wrapper.appendChild(document.createTextNode(this.mode === 'yaml' ? strVal : `"${strVal}"`));
                 wrapper.className = 'jv-val-string';
+
+                // Highlight search match on color
+                if (this.searchQuery && strVal.toLowerCase().includes(this.searchQuery)) {
+                    wrapper.classList.add('jv-highlight');
+                }
+
                 return wrapper;
             }
 
             span.textContent = this.mode === 'yaml' ? strVal : `"${strVal}"`;
         }
 
-        // Highlight search match
+        // Highlight search match using CSS class instead of hardcoded colors
         if (this.searchQuery && span.textContent.toLowerCase().includes(this.searchQuery)) {
-            span.style.backgroundColor = '#fef08a';
-            span.style.color = '#000';
+            span.classList.add('jv-highlight');
         }
 
         return span;
     }
 
     createActionButton(iconHtml, title, onClick) {
-        const btn = document.createElement('div');
+        const btn = document.createElement('button');
+        btn.type = 'button';
         btn.className = 'jv-action-btn';
         btn.title = title;
+        btn.setAttribute('aria-label', title);
         btn.innerHTML = iconHtml;
         // Scale down icon
         const svg = btn.querySelector('svg');

@@ -697,11 +697,12 @@ export class EditorView {
             };
 
             // Forward wheel events
-            this.scroller.addEventListener('wheel', (e) => {
+            this._wheelHandler = (e) => {
                 if (this.isPaused) return;
                 e.preventDefault();
                 this.virtualScroller.scrollTop += e.deltaY;
-            }, { passive: false });
+            };
+            this.scroller.addEventListener('wheel', this._wheelHandler, { passive: false });
         } else {
             this.virtualSpacer.style.height = totalHeight + 'px';
         }
@@ -1131,11 +1132,12 @@ export class EditorView {
             };
 
             // Forward mouse wheel events from the editor area to the virtual scroller
-            this.scroller.addEventListener('wheel', (e) => {
+            this._wheelHandler = (e) => {
                 if (this.isPaused) return;
                 e.preventDefault();
                 this.virtualScroller.scrollTop += e.deltaY;
-            }, { passive: false });
+            };
+            this.scroller.addEventListener('wheel', this._wheelHandler, { passive: false });
         } else {
             this.virtualSpacer.style.height = totalHeight + 'px';
         }
@@ -1794,7 +1796,7 @@ export class EditorView {
         this.currentActiveLine = line;
         
         // Update Status Bar
-        const col = cursor - this.lineOffsets[line] + 1;
+        const col = (this.lineOffsets && this.lineOffsets[line] !== undefined) ? cursor - this.lineOffsets[line] + 1 : 1;
         if (this.statusBar) {
             this.statusBar.textContent = `Ln ${line + 1}, Col ${col}`;
         }
@@ -1898,8 +1900,14 @@ export class EditorView {
         let depth = 0;
 
         if (isOpen) {
-            // Search forward
+            // Search forward, skipping brackets inside strings
+            let inString = false;
             for (let i = bracketPos; i < text.length; i++) {
+                if (text[i] === '"' && (i === 0 || text[i - 1] !== '\\')) {
+                    inString = !inString;
+                    continue;
+                }
+                if (inString) continue;
                 if (text[i] === bracketChar) depth++;
                 else if (text[i] === target) {
                     depth--;
@@ -1907,8 +1915,20 @@ export class EditorView {
                 }
             }
         } else {
-            // Search backward
+            // Search backward, skipping brackets inside strings
+            // For backward search, we need to track string state from the beginning
+            // Build a set of positions that are inside strings
+            const inStringSet = new Set();
+            let inStr = false;
+            for (let i = 0; i <= bracketPos; i++) {
+                if (text[i] === '"' && (i === 0 || text[i - 1] !== '\\')) {
+                    inStr = !inStr;
+                    continue;
+                }
+                if (inStr) inStringSet.add(i);
+            }
             for (let i = bracketPos; i >= 0; i--) {
+                if (inStringSet.has(i)) continue;
                 if (text[i] === bracketChar) depth++;
                 else if (text[i] === target) {
                     depth--;
@@ -2356,13 +2376,20 @@ export class EditorView {
         const closeChar = openChar === '{' ? '}' : ']';
         let depth = 0;
         
-        // Scan from start line to find matching close
+        // Scan from start line to find matching close, skipping brackets in strings
+        let inString = false;
         for (let i = startLine; i < this.lineCount; i++) {
             const lStart = this.lineOffsets[i];
             const lEnd = (i + 1 < this.lineOffsets.length) ? this.lineOffsets[i + 1] : content.length;
             const text = content.substring(lStart, lEnd);
             
-            for (const char of text) {
+            for (let j = 0; j < text.length; j++) {
+                const char = text[j];
+                if (char === '"' && (j === 0 || text[j - 1] !== '\\')) {
+                    inString = !inString;
+                    continue;
+                }
+                if (inString) continue;
                 if (char === openChar) depth++;
                 else if (char === closeChar) {
                     depth--;
@@ -2432,6 +2459,12 @@ export class EditorView {
         if (this.worker) {
             this.worker.terminate();
             this.worker = null;
+        }
+
+        // Remove wheel event listeners
+        if (this.scroller && this._wheelHandler) {
+            this.scroller.removeEventListener('wheel', this._wheelHandler);
+            this._wheelHandler = null;
         }
 
         // Clear all timers

@@ -669,20 +669,43 @@ body.dark-theme .jv-nav-btn.active {
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
 }
 
+/* Image Preview on Hover */
+.jv-image-link {
+  position: relative;
+}
+
+.jv-image-link:hover::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 6px;
+  width: 200px;
+  height: 150px;
+  background-image: var(--jv-preview-url);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  z-index: 1000;
+  pointer-events: none;
+}
+
 /* Search Highlights */
 .jv-highlight {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.4), rgba(245, 158, 11, 0.4));
+  background: rgba(251, 191, 36, 0.35);
   color: inherit !important;
-  border-radius: 3px;
-  padding: 1px 3px;
-  margin: -1px -3px;
-  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25);
+  border-radius: 2px;
+  display: inline;
 }
 
 .jv-highlight-current {
   background: var(--accent) !important;
   color: white !important;
-  box-shadow: 0 0 0 3px var(--accent-glow), 0 2px 8px rgba(124, 58, 237, 0.4);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--accent-glow);
 }
 
 /* ============================================

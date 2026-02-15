@@ -1,8 +1,16 @@
 import { Viewer } from './ui/Viewer.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    chrome.storage.local.get(['viewerContent'], (result) => {
-        const content = result.viewerContent;
+    // Get viewer content ID from URL params, fallback to legacy key
+    const params = new URLSearchParams(window.location.search);
+    const viewerId = params.get('id') || 'viewerContent';
+
+    chrome.storage.local.get([viewerId], (result) => {
+        const content = result[viewerId];
+
+        // Clean up stored content to prevent stale data and wasted storage
+        chrome.storage.local.remove([viewerId]);
+
         const root = document.getElementById('root');
         
         if (!content) {

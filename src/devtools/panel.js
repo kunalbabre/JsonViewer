@@ -23,6 +23,14 @@ chrome.devtools.network.onRequestFinished.addListener(request => {
                     mimeType.startsWith('font/');
 
     if (!isMedia) {
+        // Only fetch content for types that could be JSON
+        const isLikelyJson = mimeType.includes('json') || 
+                             mimeType === 'text/plain' || 
+                             mimeType === 'application/octet-stream' ||
+                             mimeType === 'application/x-amz-json-1.1' ||
+                             mimeType === '';
+        if (!isLikelyJson) return;
+
         // Fetch content to verify it's not empty
         request.getContent((content, encoding) => {
             if (chrome.runtime.lastError || !content) return;
@@ -87,6 +95,9 @@ function setupManualButton() {
             // Deselect list items
             document.querySelectorAll('.jv-request-item').forEach(i => i.classList.remove('active'));
             
+            // Destroy previous viewer to prevent memory leaks
+            if (currentViewer?.destroy) currentViewer.destroy();
+
             const root = document.getElementById('viewer-root');
             root.innerHTML = '';
             
@@ -107,6 +118,9 @@ function clearList() {
     const list = document.getElementById('request-list');
     if (list) list.innerHTML = '';
     
+    // Destroy previous viewer to prevent memory leaks
+    if (currentViewer?.destroy) currentViewer.destroy();
+
     const root = document.getElementById('viewer-root');
     if (root) {
         root.innerHTML = `
@@ -253,6 +267,10 @@ function addRequestToList(request, content) {
 
 function renderViewer(json, rawData, options = {}) {
     const root = document.getElementById('viewer-root');
+
+    // Destroy previous viewer to prevent memory leaks
+    if (currentViewer?.destroy) currentViewer.destroy();
+
     root.innerHTML = ''; // Clear placeholder
     
     // Merge options with sticky view preference

@@ -39,8 +39,8 @@ function convert(data, indentLevel, seenObjects) {
     }
 
     if (typeof data === 'string') {
-        // Quote strings if they contain special characters or resemble numbers/booleans
-        if (data.match(/^[\d\.]+$|^(true|false|null)$|[:#\[\]\{\}\*&!|>'"]/) || data === '') {
+        // Quote strings if they contain special characters or resemble numbers/booleans/null
+        if (data === '' || data === '~' || /^\s|\s$|\n/.test(data) || data.match(/^[\d.]+$|^(true|false|null|~)$/i) || /[:#[\]{}*&!|>'"@`%]/.test(data)) {
             return `"${data.replace(/"/g, '\\"')}"`;
         }
         return data;

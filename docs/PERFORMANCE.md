@@ -16,28 +16,29 @@ The JSON Viewer extension needed optimization for very large JSON files (50MB+):
 
 #### Configuration Constants
 
-All performance-sensitive values are defined as named constants for easy tuning:
+All performance-sensitive values are centralized in `src/config.js` and imported by each component:
 
 ```javascript
-// TreeView.js (Optimized for 50MB+)
-const BATCH_SIZE = 250;                // Nodes per animation frame (increased from 100)
-const PAGE_SIZE = 1000;                // Nodes before "Show More" (increased from 500)
-const LARGE_OBJECT_THRESHOLD = 50;     // Auto-collapse threshold
-const DEEP_NESTING_THRESHOLD = 0;      // Auto-collapse depth
+// src/config.js (centralized configuration)
+export const CONFIG = {
+    performance: {
+        batchSize: 250,             // Nodes per animation frame
+        pageSize: 1000,             // Nodes before "Show More"
+        largeObjectThreshold: 50,   // Auto-collapse threshold
+        deepNestingThreshold: 2,    // Auto-collapse depth
+        gridBatchSize: 50,          // Table rows per batch
+        columnSampleSize: 100,      // Column detection sample
+        schemaSampleSize: 1000,     // Array items for schema
+        largeFileThreshold: 5 * 1024 * 1024,      // 5 MB for loading indicator
+        veryLargeFileThreshold: 10 * 1024 * 1024,  // 10 MB for Web Worker parsing
+    }
+};
 
-// GridView.js (Optimized for 50MB+)
-const GRID_BATCH_SIZE = 100;           // Table rows per batch (increased from 50)
-const COLUMN_SAMPLE_SIZE = 100;        // Items for column detection
-
-// SchemaView.js
-const SCHEMA_SAMPLE_SIZE = 1000;       // Array items for schema (in Web Worker)
-
-// content.js (Optimized for 50MB+)
-const LARGE_FILE_THRESHOLD = 5242880;  // 5 MB for loading indicator (increased from 1MB)
-const VERY_LARGE_FILE = 10485760;      // 10 MB for Web Worker parsing
+// Components import from config.js:
+// TreeView.js:   import { CONFIG } from '../config.js';
+// GridView.js:   import { CONFIG } from '../config.js';
+// SchemaView.js: import { CONFIG } from '../config.js';
 ```
-
-These values have been optimized for 50MB+ files while maintaining smooth performance.
 
 #### 1. Lazy TreeView Rendering
 **File:** `src/ui/TreeView.js`

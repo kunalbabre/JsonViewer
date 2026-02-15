@@ -1,7 +1,10 @@
 import { Icons } from './Icons.js';
 
 // Detect platform for keyboard shortcut display
-const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+const isMac = typeof navigator !== 'undefined' && (
+    /** @type {any} */ (navigator).userAgentData?.platform === 'macOS' ||
+    /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
+);
 const MOD_KEY = isMac ? '⌘' : 'Ctrl+';
 
 export class Toolbar {
@@ -48,7 +51,7 @@ export class Toolbar {
         logo.textContent = 'JSON Viewer';
         rightGroup.appendChild(logo);
 
-        const themeBtn = this.createButton(Icons.theme, 'Toggle Theme', onThemeToggle, '', `${MOD_KEY}T`);
+        const themeBtn = this.createButton(Icons.theme, 'Toggle Theme', onThemeToggle, '', `${MOD_KEY}D`);
         themeBtn.classList.add('jv-icon-only');
         rightGroup.appendChild(themeBtn);
 

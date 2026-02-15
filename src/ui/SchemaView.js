@@ -1,9 +1,10 @@
 import { Icons } from './Icons.js';
 import { Toast } from './Toast.js';
 import { EditorView } from './EditorView.js';
+import { CONFIG } from '../config.js';
 
-const SCHEMA_SAMPLE_SIZE = 1000;
-const MAX_SCHEMA_DEPTH = 50;
+const SCHEMA_SAMPLE_SIZE = CONFIG.performance.schemaSampleSize;
+const MAX_SCHEMA_DEPTH = CONFIG.performance.maxSchemaDepth;
 
 // Protect against prototype pollution
 const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
@@ -60,22 +61,40 @@ export class SchemaView {
             this.worker = new Worker(workerUrl);
 
             this.worker.onmessage = (e) => {
+                if (this._schemaWorkerTimeout) clearTimeout(this._schemaWorkerTimeout);
                 const { schema, error } = e.data;
                 if (error) {
                     this.renderError(error);
                 } else {
                     this.renderSchema(schema);
                 }
+                this.worker.onmessage = null;
+                this.worker.onerror = null;
                 this.worker.terminate();
                 this.worker = null;
             };
 
             this.worker.onerror = (err) => {
                 // Worker failed (likely CSP restriction), fall back to main thread
+                if (this._schemaWorkerTimeout) clearTimeout(this._schemaWorkerTimeout);
                 console.warn('SchemaView: Worker failed, falling back to main thread:', err);
+                this.worker.onmessage = null;
+                this.worker.onerror = null;
                 this.worker = null;
                 this.generateSchemaOnMainThread();
             };
+
+            // Timeout for worker - fall back to main thread after 30s
+            this._schemaWorkerTimeout = setTimeout(() => {
+                if (this.worker) {
+                    console.warn('SchemaView: Worker timeout, falling back to main thread');
+                    this.worker.onmessage = null;
+                    this.worker.onerror = null;
+                    this.worker.terminate();
+                    this.worker = null;
+                    this.generateSchemaOnMainThread();
+                }
+            }, 30000);
         } catch (e) {
             // Worker creation failed (likely CSP restriction), will fall back to main thread
             console.warn('SchemaView: Worker creation failed:', e);

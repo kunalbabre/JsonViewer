@@ -5,6 +5,7 @@ import { SchemaView } from './SchemaView.js';
 import { YamlView } from './YamlView.js';
 import { EditorView } from './EditorView.js';
 import { Toast } from './Toast.js';
+import { escapeHtml } from '../utils/helpers.js';
 
 /**
  * @typedef {'tree' | 'editor' | 'raw' | 'schema' | 'yaml'} ViewMode
@@ -509,6 +510,12 @@ export class Viewer {
     switchView(view) {
         this.currentView = view;
         
+        // Cancel pending search before switching
+        if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer);
+            this.searchDebounceTimer = null;
+        }
+
         // Notify parent
         if (this.options.onViewChange) {
             this.options.onViewChange(view);
@@ -619,9 +626,6 @@ export class Viewer {
                 let lastIndex = 0;
                 let pos = 0;
                 
-                // Build highlighted HTML efficiently
-                const escapeHtml = (str) => str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-                
                 let html = '';
                 const matches = [];
 
@@ -634,6 +638,7 @@ export class Viewer {
                     
                     if (matches.length >= MAX_MATCHES) {
                         // Stop searching if too many matches
+                        Toast.show(`Showing first ${MAX_MATCHES} matches. Refine your search for better results.`);
                         break;
                     }
 
@@ -874,12 +879,14 @@ export class Viewer {
             this.currentMatchIndex--;
             if (this.currentMatchIndex < 0) {
                 this.currentMatchIndex = this.searchMatches.length - 1; // Wrap to end
+                Toast.show('Wrapped to last match');
             }
         } else {
             // Enter - go to next match
             this.currentMatchIndex++;
             if (this.currentMatchIndex >= this.searchMatches.length) {
                 this.currentMatchIndex = 0; // Wrap to beginning
+                Toast.show('Wrapped to first match');
             }
         }
 
@@ -1014,8 +1021,8 @@ export class Viewer {
                 this.handleSave();
             }
 
-            // Theme toggle shortcut (⌘T) - only when not in an input
-            if ((e.metaKey || e.ctrlKey) && e.key === 't' && !isInput) {
+            // Theme toggle shortcut (⌘D) - only when not in an input
+            if ((e.metaKey || e.ctrlKey) && e.key === 'd' && !isInput) {
                 e.preventDefault();
                 this.toggleTheme();
             }
@@ -1112,12 +1119,18 @@ export class Viewer {
             this.searchDebounceTimer = null;
         }
 
-        // Terminate any active workers in views
-        if (this.editorView?.worker) {
-            this.editorView.worker.terminate();
+        // Destroy child views to clean up their listeners and workers
+        if (this.editorView?.destroy) {
+            this.editorView.destroy();
+        }
+        if (this.schemaView?.editorView?.destroy) {
+            this.schemaView.editorView.destroy();
         }
         if (this.schemaView?.worker) {
             this.schemaView.worker.terminate();
+        }
+        if (this.yamlView?.editorView?.destroy) {
+            this.yamlView.editorView.destroy();
         }
 
         // Clean up toolbar

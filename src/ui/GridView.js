@@ -1,6 +1,8 @@
-// Performance tuning constants - optimized for 50MB+ files
-const GRID_BATCH_SIZE = 100; // Number of table rows to render per batch (increased for faster loading)
-const COLUMN_SAMPLE_SIZE = 100; // Number of items to sample for column detection
+import { CONFIG } from '../config.js';
+
+// Performance tuning constants - imported from centralized config
+const GRID_BATCH_SIZE = CONFIG.performance.gridBatchSize;
+const COLUMN_SAMPLE_SIZE = CONFIG.performance.columnSampleSize;
 
 export class GridView {
     constructor(data, searchQuery = '') {
@@ -52,8 +54,7 @@ export class GridView {
 
             // Highlight search match in column header
             if (this.searchQuery && col.toLowerCase().includes(this.searchQuery)) {
-                th.style.backgroundColor = '#fef08a';
-                th.style.color = '#000';
+                th.classList.add('jv-highlight');
             }
 
             trHead.appendChild(th);
@@ -86,7 +87,11 @@ export class GridView {
 
                     if (typeof val === 'object' && val !== null) {
                         try {
-                            td.textContent = JSON.stringify(val).substring(0, 50) + '...';
+                            const str = JSON.stringify(val);
+                            td.textContent = str.length > 50 ? str.substring(0, 50) + '...' : str;
+                            if (str.length > 50) {
+                                td.title = str.length > 500 ? str.substring(0, 500) + '...' : str;
+                            }
                         } catch (e) {
                             td.textContent = '[Complex Object]';
                         }
@@ -97,8 +102,7 @@ export class GridView {
 
                     // Highlight search match in cell value
                     if (this.searchQuery && td.textContent.toLowerCase().includes(this.searchQuery)) {
-                        td.style.backgroundColor = '#fef08a';
-                        td.style.color = '#000';
+                        td.classList.add('jv-highlight');
                     }
 
                     tr.appendChild(td);

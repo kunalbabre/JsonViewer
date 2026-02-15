@@ -76,26 +76,23 @@ Caches `Object.keys()` results to avoid redundant calculations.
 
 ## Configuration
 
-All performance tuning values are defined as constants:
+All performance tuning values are centralized in `src/config.js` and imported by each component:
 
 ```javascript
-// TreeView.js
-const BATCH_SIZE = 100                // Nodes per animation frame
-const LARGE_OBJECT_THRESHOLD = 50     // Auto-collapse threshold
-const DEEP_NESTING_THRESHOLD = 1      // Auto-collapse depth
-
-// GridView.js
-const GRID_BATCH_SIZE = 50            // Table rows per batch
-const COLUMN_SAMPLE_SIZE = 100        // Column detection sample
-
-// SchemaView.js
-const SCHEMA_SAMPLE_SIZE = 100        // Schema array sample
-
-// content.js
-const LARGE_FILE_THRESHOLD = 1048576  // 1 MB loading indicator
+// src/config.js
+export const CONFIG = {
+    performance: {
+        batchSize: 250,             // Nodes per animation frame
+        pageSize: 1000,             // Nodes before "Show More"
+        largeObjectThreshold: 50,   // Auto-collapse threshold
+        deepNestingThreshold: 2,    // Auto-collapse depth
+        gridBatchSize: 50,          // Table rows per batch
+        columnSampleSize: 100,      // Column detection sample
+        schemaSampleSize: 1000,     // Schema array sample
+        largeFileThreshold: 5 * 1024 * 1024,  // 5 MB loading indicator
+    }
+};
 ```
-
-These can be adjusted for different hardware or use cases.
 
 ## Quality Assurance
 

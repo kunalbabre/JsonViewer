@@ -95,7 +95,7 @@ Find what you need instantly:
 | **Save** | `Ctrl/⌘+S` | Download as .json file |
 | **Format** | `Alt+Shift+F` | Pretty-print with indentation |
 | **Find** | `Ctrl/⌘+F` | Focus search input |
-| **Theme** | `Ctrl/⌘+T` | Toggle light/dark mode |
+| **Theme** | `Ctrl/⌘+D` | Toggle light/dark mode |
 
 #### Level-Based Expand/Collapse
 
@@ -152,7 +152,7 @@ Built for speed with large files:
 | `Shift + Enter` | Previous search match |
 | `Ctrl/⌘ + C` | Copy JSON |
 | `Ctrl/⌘ + S` | Save to file |
-| `Ctrl/⌘ + T` | Toggle theme |
+| `Ctrl/⌘ + D` | Toggle theme |
 | `Alt + Shift + F` | Format JSON (Editor) |
 | `Ctrl/⌘ + Enter` | Apply changes (Editor) |
 
@@ -174,18 +174,25 @@ JsonViewer/
 ├── src/
 │   ├── background.js       # Service worker
 │   ├── content.js          # Page injection
+│   ├── config.js           # Centralized configuration
 │   ├── styles.css          # Global styles
+│   ├── viewer-page.js      # Standalone viewer page
 │   ├── ui/                 # UI components
 │   │   ├── Viewer.js       # Main controller
 │   │   ├── TreeView.js     # Tree view
 │   │   ├── EditorView.js   # Editor view
 │   │   ├── SchemaView.js   # Schema view
+│   │   ├── GridView.js     # Grid/table view
 │   │   ├── YamlView.js     # YAML view
 │   │   ├── Toolbar.js      # Toolbar
+│   │   ├── Toast.js        # Toast notifications
 │   │   └── Icons.js        # SVG icons
 │   ├── utils/              # Utilities
+│   │   ├── helpers.js      # Shared helpers
+│   │   └── yaml.js         # JSON-to-YAML converter
+│   ├── workers/            # Web Workers
 │   └── devtools/           # DevTools panel
-├── tests/                  # E2E tests
+├── tests/                  # Unit & E2E tests
 ├── scripts/                # Build scripts
 └── docs/                   # Documentation
 ```
