@@ -7,24 +7,7 @@ A high-performance Chrome extension that makes JSON readable, navigable, and edi
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green.svg)](https://chromewebstore.google.com/detail/json-viewer/cpjmnaccoabkopabenjobiimlppmmpjn)
 
-<a href="https://youtu.be/eDnQWJA0b0s">
-  <img src="https://img.youtube.com/vi/eDnQWJA0b0s/maxresdefault.jpg" alt="Watch Demo Video" width="100%">
-</a>
-
-<p align="center">
-  <a href="https://youtu.be/eDnQWJA0b0s">
-    <img src="https://img.shields.io/badge/▶_Watch_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch Demo">
-  </a>
-</p>
-
-## Contents
-
-- [Install](#install)
-- [Features](#features)
-- [Keyboard Shortcuts](#keyboard-shortcuts)
-- [Privacy](#privacy)
-- [Development](#development)
-- [Contributing](#contributing)
+![JSON Viewer](docs/screenshots/01-tree-view.png)
 
 ---
 
@@ -152,7 +135,7 @@ Built for speed with large files:
 | `Shift + Enter` | Previous search match |
 | `Ctrl/⌘ + C` | Copy JSON |
 | `Ctrl/⌘ + S` | Save to file |
-| `Ctrl/⌘ + D` | Toggle theme |
+| `Ctrl/⌘ + T` | Toggle theme |
 | `Alt + Shift + F` | Format JSON (Editor) |
 | `Ctrl/⌘ + Enter` | Apply changes (Editor) |
 
@@ -174,73 +157,41 @@ JsonViewer/
 ├── src/
 │   ├── background.js       # Service worker
 │   ├── content.js          # Page injection
-│   ├── config.js           # Centralized configuration
 │   ├── styles.css          # Global styles
-│   ├── viewer-page.js      # Standalone viewer page
 │   ├── ui/                 # UI components
 │   │   ├── Viewer.js       # Main controller
 │   │   ├── TreeView.js     # Tree view
 │   │   ├── EditorView.js   # Editor view
 │   │   ├── SchemaView.js   # Schema view
-│   │   ├── GridView.js     # Grid/table view
 │   │   ├── YamlView.js     # YAML view
 │   │   ├── Toolbar.js      # Toolbar
-│   │   ├── Toast.js        # Toast notifications
 │   │   └── Icons.js        # SVG icons
 │   ├── utils/              # Utilities
-│   │   ├── helpers.js      # Shared helpers
-│   │   └── yaml.js         # JSON-to-YAML converter
-│   ├── workers/            # Web Workers
 │   └── devtools/           # DevTools panel
-├── tests/                  # Unit & E2E tests
+├── tests/                  # E2E tests
 ├── scripts/                # Build scripts
 └── docs/                   # Documentation
 ```
 
 ### Scripts
 
-**Testing**
-| Command | Description |
-|---------|-------------|
-| `npm test` | Run unit tests |
-| `npm run test:e2e` | Run E2E tests |
-| `npm run test:full` | Run full test suite |
-
-**Code Quality**
-| Command | Description |
-|---------|-------------|
-| `npm run typecheck` | TypeScript type checking |
-| `npm run lint` | Run ESLint |
-
-**Documentation & Media**
-| Command | Description |
-|---------|-------------|
-| `npm run doc` | Generate screenshots |
-| `npm run record` | Record demo video |
-| `npm run upload` | Upload to YouTube |
-
-**Release**
-| Command | Description |
-|---------|-------------|
-| `npm run package` | Package for Chrome Web Store |
-| `npm run clean` | Remove build artifacts |
-
-### Demo Video & YouTube Upload
-
-Record demo videos and upload to YouTube automatically:
-
 ```bash
-npm run record              # Record with subtitles
-npm run record -- --voice   # Record with AI voiceover
-npm run upload              # Upload to YouTube
+npm test              # Run E2E tests
+npm run test:devtools # Test DevTools panel
+npm run doc           # Generate documentation & screenshots
+./package.sh          # Package for Chrome Web Store
 ```
 
-**Prerequisites:** FFmpeg, Playwright (`npx playwright install msedge`)
+### Testing
 
-See **[Video Guide](docs/VIDEO_GUIDE.md)** for complete setup instructions including:
-- ElevenLabs AI voice configuration
-- YouTube API OAuth setup
-- Troubleshooting
+```bash
+# Run all tests
+npm test
+
+# Test specific features
+node tests/e2e/editor-test.mjs
+node tests/e2e/devtools-test.mjs
+```
 
 ---
 

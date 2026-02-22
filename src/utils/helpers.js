@@ -147,7 +147,7 @@ export function debounce(fn, delay) {
  * @param {{ timeout?: number }} [options]
  * @returns {number} Handle ID
  */
-export const requestIdleCallback = window.requestIdleCallback || function(callback, options) {
+export const requestIdleCallback = (typeof window !== 'undefined' && window.requestIdleCallback) || function(callback, options) {
     const timeout = options?.timeout || 50;
     return setTimeout(() => {
         const start = Date.now();
@@ -163,7 +163,7 @@ export const requestIdleCallback = window.requestIdleCallback || function(callba
  *
  * @param {number} handle - Handle ID from requestIdleCallback
  */
-export const cancelIdleCallback = window.cancelIdleCallback || function(handle) {
+export const cancelIdleCallback = (typeof window !== 'undefined' && window.cancelIdleCallback) || function(handle) {
     clearTimeout(handle);
 };
 
@@ -204,7 +204,7 @@ export function isJSON(text, skipParseThreshold = 50000) {
     // For large files, do a lightweight validation on a prefix
     if (text.length > skipParseThreshold) {
         const sample = text.substring(0, 1024);
-        return /^\s*[\{\[]\s*("([^"\\]|\\.)*"\s*:\s*|"|\d|true|false|null|\[|\{)/.test(sample);
+        return /^\s*[{[]\s*("([^"\\]|\\.)*"\s*:\s*|"|\d|true|false|null|\[|\{)/.test(sample);
     }
 
     try {

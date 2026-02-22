@@ -85,10 +85,15 @@ describe('isJSON', () => {
     });
 
     it('skips parse for large strings', () => {
-        // Large string that looks like JSON but isn't valid
+        // Large string that looks like JSON
+        const largeValid = '{"key": "' + 'x'.repeat(60000) + '"}';
+        // Should return true because it matches the lightweight regex check
+        assert.strictEqual(isJSON(largeValid, 50000), true);
+
+        // Large string that doesn't look like valid JSON content
         const largeInvalid = '{' + 'x'.repeat(60000) + '}';
-        // Should return true because it skips parsing
-        assert.strictEqual(isJSON(largeInvalid, 50000), true);
+        // Should return false because the regex rejects it
+        assert.strictEqual(isJSON(largeInvalid, 50000), false);
     });
 });
 

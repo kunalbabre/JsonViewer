@@ -1,4 +1,4 @@
-import { Icons } from './Icons.js';
+// import { Icons } from './Icons.js';
 import { Toolbar } from './Toolbar.js';
 import { TreeView } from './TreeView.js';
 import { SchemaView } from './SchemaView.js';
@@ -724,7 +724,7 @@ export class Viewer {
 
         const nodesToHighlight = [];
         let node;
-        while (node = walker.nextNode()) {
+        while ((node = walker.nextNode()) !== null) {
             const text = node.textContent;
             if (text.toLowerCase().includes(searchLower)) {
                 nodesToHighlight.push(node);
@@ -949,8 +949,8 @@ export class Viewer {
     }
 
     copyToClipboard() {
-        let content = this.rawData;
-        let label = 'JSON';
+        let content;
+        let label;
         
         switch (this.currentView) {
             case 'editor':

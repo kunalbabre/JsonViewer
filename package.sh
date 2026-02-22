@@ -23,7 +23,7 @@ echo "✓ Package created: json-viewer-extension.zip"
 # Show package contents for verification
 echo ""
 echo "Package contents:"
-unzip -l json-viewer-extension.zip | tail -n +4 | head -n -2
+unzip -l json-viewer-extension.zip | tail -n +4 | sed '$d' | sed '$d'
 
 echo ""
 echo "Next steps:"

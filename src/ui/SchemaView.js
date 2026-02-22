@@ -1,5 +1,5 @@
-import { Icons } from './Icons.js';
-import { Toast } from './Toast.js';
+// import { Icons } from './Icons.js';
+// import { Toast } from './Toast.js';
 import { EditorView } from './EditorView.js';
 import { CONFIG } from '../config.js';
 

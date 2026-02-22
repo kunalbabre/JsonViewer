@@ -28,7 +28,7 @@ function isJSON(text) {
             // Parse first 1KB to check for valid JSON structure
             const sample = text.substring(0, 1024);
             // Check that the sample contains valid JSON tokens (keys, colons, commas)
-            const hasJsonTokens = /^\s*[\{\[]\s*("([^"\\]|\\.)*"\s*:\s*|"|\d|true|false|null|\[|\{)/.test(sample);
+            const hasJsonTokens = /^\s*[{[]\s*("([^"\\]|\\.)*"\s*:\s*|"|\d|true|false|null|\[|\{)/.test(sample);
             return hasJsonTokens;
         } catch (e) {
             return false;
@@ -362,7 +362,7 @@ function scanForJsonCodeBlocks() {
             // Scan for code blocks
             setTimeout(scanForJsonCodeBlocks, 1000);
             // Optional: Observe for dynamic content
-            const mutationObserver = new MutationObserver((mutations) => {
+            const mutationObserver = new MutationObserver((_mutations) => {
                 // Simple debounce
                 if (window.jvScanTimeout) clearTimeout(window.jvScanTimeout);
                 window.jvScanTimeout = setTimeout(scanForJsonCodeBlocks, 1000);
@@ -385,7 +385,7 @@ function scanForJsonCodeBlocks() {
             // Check URL for known JSON/JSONL extensions
             const urlPath = window.location.pathname.toLowerCase();
             const isJsonlUrl = urlPath.endsWith('.jsonl') || urlPath.endsWith('.ndjson');
-            const isJsonUrl = urlPath.endsWith('.json');
+            // const isJsonUrl = urlPath.endsWith('.json');
 
             // Strict check: Only activate full viewer if the page is clearly a JSON response.
             // We avoid activating on regular HTML pages that happen to have a code block.

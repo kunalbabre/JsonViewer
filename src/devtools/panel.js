@@ -32,7 +32,7 @@ chrome.devtools.network.onRequestFinished.addListener(request => {
         if (!isLikelyJson) return;
 
         // Fetch content to verify it's not empty
-        request.getContent((content, encoding) => {
+        request.getContent((content, _encoding) => {
             if (chrome.runtime.lastError || !content) return;
 
             // Skip empty responses
@@ -236,7 +236,7 @@ function addRequestToList(request, content) {
         root.innerHTML = '<div class="jv-placeholder">Loading...</div>';
 
         // Load content
-        request.getContent((content, encoding) => {
+        request.getContent((content, _encoding) => {
             if (chrome.runtime.lastError) {
                 root.innerHTML = '';
                 const errorDiv = document.createElement('div');

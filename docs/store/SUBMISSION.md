@@ -1,7 +1,7 @@
 # Chrome Web Store Submission Details
 
-Generated: 2025-12-20
-Version: 1.0.2
+Generated: 2026-02-22
+Version: 1.0.3
 
 ---
 
@@ -36,6 +36,7 @@ JSON Viewer is a high-performance Chrome extension that makes JSON readable, nav
 • Real-time highlighting as you type
 • Navigate matches with Enter / Shift+Enter
 • Regex support for advanced queries
+• Wrap-around navigation with match count feedback
 
 ⚡ PERFORMANCE OPTIMIZED
 • Lazy rendering - Only visible nodes hit the DOM
@@ -53,12 +54,14 @@ JSON Viewer is a high-performance Chrome extension that makes JSON readable, nav
 • Ctrl/⌘+F - Focus search
 • Ctrl/⌘+C - Copy JSON
 • Ctrl/⌘+S - Save to file
-• Ctrl/⌘+T - Toggle theme
+• Ctrl/⌘+D - Toggle theme
 
 🌙 WORKS EVERYWHERE
 • Auto-detects JSON in browser tabs
+• Supports JSONL and NDJSON files
 • Local files - Open .json files directly
 • Context menu - Right-click selected text → "View JSON Snippet"
+• Image URL preview on hover in tree view
 • Light & dark themes - Matches system preference
 
 🔒 PRIVACY
