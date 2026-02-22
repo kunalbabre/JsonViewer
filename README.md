@@ -119,8 +119,10 @@ Built for speed with large files:
 ### Works Everywhere
 
 - **Auto-detects JSON** in browser tabs
+- **JSONL & NDJSON** file support
 - **Local files** - Open .json files directly
 - **Context menu** - Right-click selected text → "View JSON Snippet"
+- **Image URL preview** on hover in tree view
 - **Light & dark themes** - Matches system preference
 - **100% offline** - No data sent anywhere
 
